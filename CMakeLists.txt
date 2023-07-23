@@ -26,7 +26,7 @@ elseif(UNIX)
 endif()
 
 
-#compile files in COre and OpenCL external libs
+#compile files in Core and OpenCL external libs
 file(GLOB CORE_SRC "lib/Core/*.cpp" "lib/Core/*.c")
 file(GLOB OPENCL_SRC "lib/OpenCL/*.cpp" "lib/OpenCL/*.c")
 
@@ -39,7 +39,7 @@ if (MSVC)
 endif()
 
 # Add source to this project's executable.
-add_executable (jpeg-encoder-opencl "src/OpenCLProject_JPEG_Encoder.cpp" ${CORE_SRC} ${OPENCL_SRC} )
+add_executable (jpeg-encoder-opencl "src/OpenCLProject_JpegEncoder.cpp" ${CORE_SRC} ${OPENCL_SRC} )
 target_include_directories (jpeg-encoder-opencl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "CORE" "OPENCL" "src" "lib")
 target_link_libraries (jpeg-encoder-opencl ${OpenCL_LIBRARY} dl boost_system) #imagehlp)
 
