@@ -46,6 +46,7 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 	FILE *fp = fopen(file_path, "rb");
 	// check if the file was opened successfully
 	if (!fp) {
+		std::cout << "input file NF";
 		return_val = -1;
 		goto cleanup;
 	}
@@ -74,7 +75,6 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 			*width = atoi(token);
 			token = strtok(NULL, " "); // NULL to continue parsing the same string
 			*height = atoi(token);
-			
 			// read the maximum value of a pixel and store it in max_value 
 			// as an integer
 			fgets(line, sizeof(line), fp);
@@ -85,7 +85,7 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 				goto cleanup;
 			}
 			break;
-		}
+		 }
 	}
 	// allocate memory for the image
 	*buffer = (rgb_pixel_t *)malloc(*width * *height * sizeof(rgb_pixel_t));
@@ -101,12 +101,14 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 
 	cleanup:
 	fclose(fp);
-
+	std::cout << return_val;
 	return return_val;
+	//return 1;
 }
 
 void JpegEncoderHost(/* fill here*/) {
 	// stub for CPU implementation
+
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -151,9 +153,9 @@ int main(int argc, char** argv) {
 	cl::Kernel JpegEncoderKernel(program, "JpegEncoderKernel");
 	
 	// start here with your own code
-	ppm_t *buffer;
+	ppm_t buffer;
 	
-	if (readPPMImage("../data/tomato.ppm", &buffer->w, &buffer->h, &buffer->pixel)) {
+	if (readPPMImage("../data/fruit.ppm", &buffer.w, &buffer.h, &buffer.pixel)) {
 		std::cout << "Error reading the image" << std::endl;
 		return 1;
 	}
