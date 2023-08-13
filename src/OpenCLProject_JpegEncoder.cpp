@@ -46,7 +46,6 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 	FILE *fp = fopen(file_path, "rb");
 	// check if the file was opened successfully
 	if (!fp) {
-		std::cout << "input file NF";
 		return_val = -1;
 		goto cleanup;
 	}
