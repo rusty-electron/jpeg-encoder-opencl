@@ -105,9 +105,84 @@ int readPPMImage(const char * const file_path, size_t *width, size_t *height, rg
 	//return 1;
 }
 
-void JpegEncoderHost(/* fill here*/) {
-	// stub for CPU implementation
+int getDimension(uint8_t *header, int &pos){
+    int dim=0;
+    for ( ;header[pos]!='\n' && header[pos]!=' ';pos++)
+        dim = dim * 10 + (header[pos] - '0');
+    return dim;
+}
 
+//function for test only
+void removeBlue(uint8_t *image, uint8_t *withoutblueimage, int size){
+    size_t i;
+    for (i=0;i<size;i=i+3){
+        withoutblueimage[i]=image[i];
+        withoutblueimage[i+1]=image[i+1];
+        withoutblueimage[i+2]=0;//blue component is set to 0
+		//std::cout << int(image[i]) << " " << i;
+    }
+}
+
+//function for test only
+void writePPM(FILE *file, uint8_t *header, uint8_t *image, int size){
+    fwrite( header , 15,  1, file);//writing header information
+    fwrite( image , size,  1, file);//writing image information
+	fclose(file);
+}
+
+void csc(uint8_t* image, int size, uint8_t *header){
+	uint8_t *cscImage;
+	int i;
+	for (i=0;i<size;i=i+3){
+		
+		//image[i] = 0.299*image[i];
+		image[i] = static_cast<uint8_t>(0.299 * image[i] + 0.587 * image[i+1] + 0.114 * image[i+2]);
+		image[i+1] = static_cast<uint8_t>(128 - 0.168736 * image[i] - 0.331264 * image[i+1] + 0.5 * image[i+2]);
+		image[i+2] = static_cast<uint8_t>(128 + 0.5 * image[i] - 0.418688 * image[i+1] - 0.081312 * image[i+2]);
+		std::cout << image[i] << " ";
+	}
+	FILE *newF;
+	newF = fopen("../data/csc.ppm","wb");
+	writePPM(newF, header, image, size);
+	//
+	
+}
+
+int easyPPMRead(uint8_t *image){
+	FILE *read, *write;
+	read = fopen("../data/fruit.ppm", "rb");
+	uint8_t header[15];
+	fread(header, 15, 1, read);
+	if (header[0] != 'P' || header[1] != '6'){
+		std::cout << "Wrong file format";
+	}
+
+	int width, height, clrs, pos = 3;
+	width = getDimension(header, pos);
+	pos++;
+	height = getDimension(header, pos);
+	std::cout << "Width:" << width << "\tHeight:" << height << '\n';
+	image = new uint8_t [width * height * 3];
+	
+	fread(image, width*height*3, 1, read);
+	uint8_t *withoutblueimage;
+	withoutblueimage = new uint8_t [width * height * 3];
+	removeBlue(image, withoutblueimage, width*height*3); //testing, to be removed later
+	write = fopen("../data/west_1_without_blue.ppm","wb");
+	writePPM(write, header, withoutblueimage, width*height*3);
+	fclose(read);
+	csc(image, width * height * 3, header);
+	return (width * height * 3);
+	//return write;
+
+}
+
+void JpegEncoderHost(uint8_t *image) {
+	// stub for CPU implementation
+	int size;
+	size = easyPPMRead(image);
+	std::cout << size;
+	
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -159,6 +234,12 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	uint8_t image;
+	JpegEncoderHost(&image);
+	// uint8_t *imgPtr = &image;
+	// int size;
+	// size = easyPPMRead(imgPtr);
+	// csc(imgPtr, size);
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction
