@@ -130,7 +130,40 @@ void writePPM(FILE *file, uint8_t *header, uint8_t *image, int size){
 	fclose(file);
 }
 
-void csc(uint8_t* image, size_t size, uint8_t *header){
+
+
+void cds(uint8_t* image, size_t width, size_t height, uint8_t *header){ 
+	
+	 for (int y = 0; y < height; y += 2) {
+        for (int x = 0; x < width; x += 2) {
+            int index1 = (y * width + x) * 3;
+            int index2 = (y * width + x + 1) * 3;
+            int index3 = ((y + 1) * width + x) * 3;
+            int index4 = ((y + 1) * width + x + 1) * 3;
+
+            uint8_t avgCb = (image[index1 + 1] + image[index2 + 1] + image[index3 + 1] + image[index4 + 1]) / 4;
+            uint8_t avgCr = (image[index1 + 2] + image[index2 + 2] + image[index3 + 2] + image[index4 + 2]) / 4;
+
+            image[index1 + 1] = avgCb;
+            image[index2 + 1] = avgCb;
+            image[index3 + 1] = avgCb;
+            image[index4 + 1] = avgCb;
+
+            image[index1 + 2] = avgCr;
+            image[index2 + 2] = avgCr;
+            image[index3 + 2] = avgCr;
+            image[index4 + 2] = avgCr;
+        }
+    }
+
+	FILE *write;
+	write = fopen("../data/cds.ppm","wb");
+	writePPM(write, header, image, (int)height*width*3);
+
+
+}
+
+void csc(uint8_t* image, size_t size, uint8_t *header, size_t width, size_t height){
 	uint8_t *cscImage;
 	size_t i;
 	for (i=0;i<size;i=i+3){
@@ -143,6 +176,7 @@ void csc(uint8_t* image, size_t size, uint8_t *header){
 	FILE *newF;
 	newF = fopen("../data/csc.ppm","wb");
 	writePPM(newF, header, image, (int)size);
+	
 	//
 	
 }
@@ -170,7 +204,8 @@ size_t easyPPMRead(uint8_t *image){
 	write = fopen("../data/west_1_without_blue.ppm","wb");
 	writePPM(write, header, withoutblueimage, width*height*3);
 	fclose(read);
-	csc(image, width * height * 3, header);
+	csc(image, width * height * 3, header, width, height);
+	cds(image, width, height, header);
 	return static_cast<size_t>(width * height * 3);
 	//return write;
 
