@@ -1,6 +1,9 @@
 # custom
 build/*
-.vscode/*
+.vscode
+.idea
+cmake-build-debug
+data/*
 
 # Prerequisites
 *.d

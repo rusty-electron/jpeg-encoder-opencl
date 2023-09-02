@@ -9,7 +9,6 @@ find_package(OpenCL)
 include_directories(${OpenCL_INCLUDE_DIRS})
 link_directories(${OpenCL_LIBRARY})
 
-
 find_package(Boost 1.56 REQUIRED)
 
 #adding the Boost libs to the proj
@@ -25,6 +24,9 @@ elseif(UNIX)
   include_directories(${Boost_INCLUDE_DIR})
 endif()
 
+# set build type to debug
+# set(CMAKE_BUILD_TYPE Debug)
+add_definitions(-g)
 
 #compile files in Core and OpenCL external libs
 file(GLOB CORE_SRC "lib/Core/*.cpp" "lib/Core/*.c")
