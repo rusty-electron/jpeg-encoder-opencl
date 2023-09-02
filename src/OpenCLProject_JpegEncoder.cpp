@@ -36,73 +36,73 @@ struct PPMimage {
 
 typedef struct PPMimage ppm_t;
 
-int readPPMImage(const char * const file_path, size_t *width, size_t *height, rgb_pixel_t **buffer) {
+int readPPMImage(const char* filepath, size_t* width, size_t* height, rgb_pixel_t** buffer) {
 	char line[128];
-	char *token;
-	int return_val = 0;
-	int max_value;
+	FILE *fp = fopen(filepath, "rb");
 
-	// open the file in binary mode
-	FILE *fp = fopen(file_path, "rb");
-	// check if the file was opened successfully
-	if (!fp) {
-		return_val = -1;
-		goto cleanup;
-	}
+	if (fp) {
+		if (!fgets(line, sizeof(line), fp)) {
+			std::cout << "Error reading the file" << std::endl;
+			fclose(fp);
+			return -1;
+		}
 
-	// read the first line of the file
-	// if it is not possible to read from the file, return -2
-	if (!fgets(line, sizeof(line), fp)) {
-		return_val = -2;
-		goto cleanup;
-	}
+		if (strcmp(line, "P6\n")) {
+			std::cout << "Invalid file format" << std::endl;
+			fclose(fp);
+			return -1;
+		}
 
-	// check if the file is a PPM file
-	// the file has to start with the magic number P6
-	if (strcmp(line, "P6\n")) {
-		return_val = -3;
-		goto cleanup;
-	}
-
-	while (fgets(line, sizeof(line), fp)) {
-		// check if the line is a comment
-		// comments start with a '#'
-		if (line[0] == '#') {
-			continue;
-		} else {
-			token = strtok(line, " ");
-			*width = atoi(token);
-			token = strtok(NULL, " "); // NULL to continue parsing the same string
-			*height = atoi(token);
-			// read the maximum value of a pixel and store it in max_value 
-			// as an integer
-			fgets(line, sizeof(line), fp);
-			max_value = atoi(line);
-			// check if the maximum value is 255
-			if (max_value != 255) {
-				return_val = -4;
-				goto cleanup;
+		while (fgets(line, sizeof(line), fp)) {
+			if (line[0] == '#') {
+				continue;
+			} else {
+				char *token = strtok(line, " ");
+				*width = atoi(token);
+				token = strtok(NULL, " ");
+				*height = atoi(token);
+				fgets(line, sizeof(line), fp);
+				int max_value = atoi(line);
+				if (max_value != 255) {
+					std::cout << "Invalid maximum value" << std::endl;
+					fclose(fp);
+					return -1;
+				}
+				break;
 			}
-			break;
-		 }
+		}
+
+		*buffer = (rgb_pixel_t *)malloc(*width * *height * sizeof(rgb_pixel_t));
+
+		if (*buffer == NULL) {
+			std::cout << "Error allocating memory" << std::endl;
+			fclose(fp);
+			return -1;
+		}
+
+		fread(*buffer, sizeof(rgb_pixel_t), *width * *height, fp);
+		fclose(fp);
+	} else {
+		std::cout << "Error opening the file" << std::endl;
+		return -1;
 	}
-	// allocate memory for the image
-	*buffer = (rgb_pixel_t *)malloc(*width * *height * sizeof(rgb_pixel_t));
+	return 0;
+}
 
-	// check if the memory was allocated successfully
-	if (*buffer == NULL) {
-		return_val = -5;
-		goto cleanup;
+uint8_t AccessPixel(ppm_t *image, size_t x, size_t y, size_t channel) {
+	if (x >= image->w || y >= image->h) {
+		return -1;
+	} else {
+		if (channel == 0) {
+			return image->pixel[x + y * image->w].r;
+		} else if (channel == 1) {
+			return image->pixel[x + y * image->w].g;
+		} else if (channel == 2) {
+			return image->pixel[x + y * image->w].b;
+		} else {
+			return -1;
+		}
 	}
-
-	// read the image data from the file
-	(void)fread(*buffer, sizeof(rgb_pixel_t), *width * *height, fp);
-
-	cleanup:
-	fclose(fp);
-	std::cout << return_val;
-	return return_val;
-	//return 1;
 }
 
 void JpegEncoderHost(/* fill here*/) {
@@ -155,9 +155,15 @@ int main(int argc, char** argv) {
 	ppm_t buffer;
 	
 	if (readPPMImage("../data/fruit.ppm", &buffer.w, &buffer.h, &buffer.pixel)) {
-		std::cout << "Error reading the image" << std::endl;
-		return 1;
+		return -1;
 	}
+
+	std::cout << "Image size: " << buffer.w << "x" << buffer.h << std::endl;
+	// access first pixel
+	std::cout << "First pixel: " << (int) AccessPixel(&buffer, 0, 0, 0) << "," << (int) AccessPixel(&buffer, 0, 0, 1) << "," << (int) AccessPixel(&buffer, 0, 0, 2) << std::endl;
+
+	// free up memory
+	free(buffer.pixel);
 
 	// Check whether results are correct
 	std::size_t errorCount = 0;
