@@ -24,16 +24,6 @@
 // CPU implementation
 //////////////////////////////////////////////////////////////////////////////
 
-//function for test only
-void removeBlue(uint8_t *image, uint8_t *withoutblueimage, int size){
-    size_t i;
-    for (i=0;i<size;i=i+3){
-        withoutblueimage[i]=image[i];
-        withoutblueimage[i+1]=image[i+1];
-        withoutblueimage[i+2]=0;//blue component is set to 0
-		//std::cout << int(image[i]) << " " << i;
-    }
-}
 
 //function for test only
 void writePPM(FILE *file, uint8_t *header, uint8_t *image, int size){
@@ -81,56 +71,6 @@ void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
 	FILE *write;
 	write = fopen("../data/dct.ppm","wb");
 	writePPM(write, header, dctImg, (int)height*width*3);
-}
-
-
-void cds(uint8_t* image, size_t width, size_t height, uint8_t *header){ 
-	
-	 for (int y = 0; y < height; y += 2) {
-        for (int x = 0; x < width; x += 2) {
-            int index1 = (y * width + x) * 3;
-            int index2 = (y * width + x + 1) * 3;
-            int index3 = ((y + 1) * width + x) * 3;
-            int index4 = ((y + 1) * width + x + 1) * 3;
-
-            uint8_t avgCb = (image[index1 + 1] + image[index2 + 1] + image[index3 + 1] + image[index4 + 1]) / 4;
-            uint8_t avgCr = (image[index1 + 2] + image[index2 + 2] + image[index3 + 2] + image[index4 + 2]) / 4;
-
-            image[index1 + 1] = avgCb;
-            image[index2 + 1] = avgCb;
-            image[index3 + 1] = avgCb;
-            image[index4 + 1] = avgCb;
-
-            image[index1 + 2] = avgCr;
-            image[index2 + 2] = avgCr;
-            image[index3 + 2] = avgCr;
-            image[index4 + 2] = avgCr;
-        }
-    }
-
-	FILE *write;
-	write = fopen("../data/cds.ppm","wb");
-	writePPM(write, header, image, (int)height*width*3);
-
-
-}
-
-void csc(uint8_t* image, size_t size, uint8_t *header, size_t width, size_t height){
-	uint8_t *cscImage;
-	size_t i;
-	for (i=0;i<size;i=i+3){
-		
-		//image[i] = 0.299*image[i];
-		image[i] = static_cast<uint8_t>(0.299 * image[i] + 0.587 * image[i+1] + 0.114 * image[i+2]);
-		image[i+1] = static_cast<uint8_t>(128 - 0.168736 * image[i] - 0.331264 * image[i+1] + 0.5 * image[i+2]);
-		image[i+2] = static_cast<uint8_t>(128 + 0.5 * image[i] - 0.418688 * image[i+1] - 0.081312 * image[i+2]);
-	}
-	FILE *newF;
-	newF = fopen("../data/csc.ppm","wb");
-	writePPM(newF, header, image, (int)size);
-	
-	//
-	
 }
 
 void JpegEncoderHost(uint8_t *image) {
