@@ -209,6 +209,32 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // test getter and setter functions
+    setPixelR(&imgCPU2, 0, 0, 1);
+    setPixelG(&imgCPU2, 0, 0, 2);
+    setPixelB(&imgCPU2, 0, 0, 3);
+    std::cout << "R: " << (int)getPixelR(&imgCPU2, 0, 0) << std::endl;
+    std::cout << "G: " << (int)getPixelG(&imgCPU2, 0, 0) << std::endl;
+    std::cout << "B: " << (int)getPixelB(&imgCPU2, 0, 0) << std::endl;
+
+    // perform CSC
+    performCSC(&imgCPU);
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
+    // perform CDS
+    performCDS2(&imgCPU);
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
 	// uint8_t *imgPtr = &image;
 	// int size;
 	// size = easyPPMRead(imgPtr);

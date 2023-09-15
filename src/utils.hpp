@@ -23,3 +23,16 @@ typedef struct PPMimage ppm_t;
 int readPPMImage(const char *, size_t *, size_t *, rgb_pixel_t **);
 int writePPMImage(const char *, size_t, size_t, rgb_pixel_t *);
 void removeRedChannel(ppm_t *);
+
+void performCSC(ppm_t *);
+void performCDS(ppm_t *);
+
+rgb_pixel_t* getPixelPtr(ppm_t *, size_t, size_t);
+rgb_pixel_t getPixel(ppm_t *, size_t, size_t);
+uint8_t getPixelR(ppm_t *, size_t, size_t);
+uint8_t getPixelG(ppm_t *, size_t, size_t);
+uint8_t getPixelB(ppm_t *, size_t, size_t);
+
+void setPixelR(ppm_t *, size_t, size_t, uint8_t);
+void setPixelG(ppm_t *, size_t, size_t, uint8_t);
+void setPixelB(ppm_t *, size_t, size_t, uint8_t);

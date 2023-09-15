@@ -77,3 +77,72 @@ void removeRedChannel(ppm_t *img) {
 		img->data[i].r = 0;
 	}
 }
+
+void performCSC(ppm_t *img) {
+	for (size_t i = 0; i < img->width * img->height; ++i) {
+		rgb_pixel_t *pixel = &img->data[i];
+		uint8_t r = pixel->r;
+		uint8_t g = pixel->g;
+		uint8_t b = pixel->b;
+
+		pixel->r = (uint8_t)(0.299 * r + 0.587 * g + 0.114 * b);
+		pixel->g = (uint8_t)(-0.168736 * r - 0.331264 * g + 0.5 * b + 128);
+		pixel->b = (uint8_t)(0.5 * r - 0.418688 * g - 0.081312 * b + 128);
+	}
+}
+
+void performCDS(ppm_t *img) {
+	for (size_t y = 0; y < img->height; y += 2) {
+		for (size_t x = 0; x < img->width; x += 2) {
+			rgb_pixel_t *pixel1 = getPixelPtr(img, x, y);
+			rgb_pixel_t *pixel2 = getPixelPtr(img, x + 1, y);
+			rgb_pixel_t *pixel3 = getPixelPtr(img, x, y + 1);
+			rgb_pixel_t *pixel4 = getPixelPtr(img, x + 1, y + 1);
+
+			uint8_t avgCb = (pixel1->g + pixel2->g + pixel3->g + pixel4->g) / 4;
+			uint8_t avgCr = (pixel1->b + pixel2->b + pixel3->b + pixel4->b) / 4;
+
+			pixel1->g = avgCb;
+			pixel2->g = avgCb;
+			pixel3->g = avgCb;
+			pixel4->g = avgCb;
+
+			pixel1->b = avgCr;
+			pixel2->b = avgCr;
+			pixel3->b = avgCr;
+			pixel4->b = avgCr;
+		}
+	}
+}
+
+rgb_pixel_t getPixel(ppm_t *img, size_t x, size_t y) {
+	return img->data[y * img->width + x];
+}
+
+rgb_pixel_t* getPixelPtr(ppm_t *img, size_t x, size_t y) {
+	return &img->data[y * img->width + x];
+}
+
+uint8_t getPixelR(ppm_t *img, size_t x, size_t y) {
+	return img->data[y * img->width + x].r;
+}
+
+uint8_t getPixelG(ppm_t *img, size_t x, size_t y) {
+	return img->data[y * img->width + x].g;
+}
+
+uint8_t getPixelB(ppm_t *img, size_t x, size_t y) {
+	return img->data[y * img->width + x].b;
+}
+
+void setPixelR(ppm_t *img, size_t x, size_t y, uint8_t val) {
+	img->data[y * img->width + x].r = val;
+}
+
+void setPixelG(ppm_t *img, size_t x, size_t y, uint8_t val) {
+	img->data[y * img->width + x].g = val;
+}
+
+void setPixelB(ppm_t *img, size_t x, size_t y, uint8_t val) {
+	img->data[y * img->width + x].b = val;
+}
