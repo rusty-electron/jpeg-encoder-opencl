@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
     }
 
     // perform CDS
-    performCDS2(&imgCPU);
+    performCDS(&imgCPU);
 
     // write the image to a file
     if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
