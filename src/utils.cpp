@@ -1,8 +1,6 @@
 #include "utils.hpp"
 
-const size_t channel = 3;
-
-int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t **imgptr) {
+int readPPMImage(const char * file_path, size_t *width, size_t *height, rgb_pixel_t **imgptr) {
 	char line[128];
 	FILE *fp = fopen(file_path, "rb");
 
@@ -38,10 +36,10 @@ int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t 
 			}
 		}
 
-		unsigned int img_dims = *width * *height * channel;
+		unsigned int img_dims = *width * *height;
 
 		// assign memory to the image
-		*imgptr = new uint8_t[img_dims];
+		*imgptr = (rgb_pixel_t *)malloc(img_dims * sizeof(rgb_pixel_t));
 
 		if (*imgptr == NULL) {
 			std::cout << "Error allocating memory" << std::endl;
@@ -49,7 +47,7 @@ int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t 
 			return -1;
 		}
 
-		fread(*imgptr, sizeof(uint8_t), img_dims, fp);
+		fread(*imgptr, sizeof(rgb_pixel_t), img_dims, fp);
 		fclose(fp);
 	} else {
 		std::cout << "Error opening the file" << std::endl;
@@ -58,18 +56,24 @@ int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t 
 	return 0;
 }
 
-int writePPMImage(const char * file_path, size_t width, size_t height, uint8_t *imgptr) {
+int writePPMImage(const char * file_path, size_t width, size_t height, rgb_pixel_t *imgptr) {
     FILE *fp = fopen(file_path, "wb");
 
     if (fp) {
         fprintf(fp, "P6\n");
         fprintf(fp, "%d %d\n", width, height);
         fprintf(fp, "255\n");
-        fwrite(imgptr, sizeof(uint8_t), width * height * channel, fp);
+        fwrite(imgptr, sizeof(rgb_pixel_t), width * height, fp);
         fclose(fp);
     } else {
         std::cout << "Error opening the file" << std::endl;
         return -1;
     }
     return 0;
+}
+
+void removeRedChannel(ppm_t *img) {
+	for (size_t i = 0; i < img->width * img->height; ++i) {
+		img->data[i].r = 0;
+	}
 }

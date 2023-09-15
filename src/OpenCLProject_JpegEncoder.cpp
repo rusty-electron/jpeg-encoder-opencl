@@ -23,12 +23,6 @@
 //////////////////////////////////////////////////////////////////////////////
 // CPU implementation
 //////////////////////////////////////////////////////////////////////////////
-int getDimension(uint8_t *header, int &pos){
-    int dim=0;
-    for ( ;header[pos]!='\n' && header[pos]!=' ';pos++)
-        dim = dim * 10 + (header[pos] - '0');
-    return dim;
-}
 
 //function for test only
 void removeBlue(uint8_t *image, uint8_t *withoutblueimage, int size){
@@ -139,41 +133,7 @@ void csc(uint8_t* image, size_t size, uint8_t *header, size_t width, size_t heig
 	
 }
 
-size_t easyPPMRead(uint8_t *image){
-	FILE *read, *write;
-	read = fopen("../data/fruit.ppm", "rb");
-	uint8_t header[15];
-	fread(header, 15, 1, read);
-	if (header[0] != 'P' || header[1] != '6'){
-		std::cout << "Wrong file format";
-	}
-
-	int width, height, clrs, pos = 3;
-	width = getDimension(header, pos);
-	pos++;
-	height = getDimension(header, pos);
-	std::cout << "Width:" << width << "\tHeight:" << height << '\n';
-	image = new uint8_t [width * height * 3];
-	
-	fread(image, width*height*3, 1, read);
-	uint8_t *withoutblueimage;
-	withoutblueimage = new uint8_t [width * height * 3];
-	removeBlue(image, withoutblueimage, width*height*3); //testing, to be removed later
-	write = fopen("../data/west_1_without_blue.ppm","wb");
-	writePPM(write, header, withoutblueimage, width*height*3);
-	fclose(read);
-	csc(image, width * height * 3, header, width, height);
-	cds(image, width, height, header);
-	dct(image, width, height, header);
-	return static_cast<size_t>(width * height * 3);
-	//return write;
-
-}
-
 void JpegEncoderHost(uint8_t *image) {
-	// stub for CPU implementation
-	size_t size;
-	size = easyPPMRead(image);
 	
 }
 
@@ -219,16 +179,32 @@ int main(int argc, char** argv) {
 	cl::Kernel JpegEncoderKernel(program, "JpegEncoderKernel");
 	
 	// start here with your own code
-	uint8_t *imgCPU;
-	size_t width, height;
+    ppm_t imgCPU;
 	
-	if (readPPMImage("../data/fruit.ppm", &width, &height, &imgCPU) == -1) {
+	if (readPPMImage("../data/fruit.ppm", &imgCPU.width, &imgCPU.height, &imgCPU.data) == -1) {
 		std::cout << "Error reading the image" << std::endl;
 		return 1;
 	}
 
     // write the image to a file
-    if (writePPMImage("../data/fruit_copy.ppm", width, height, imgCPU) == -1) {
+    if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
+    // create a copy of a structure
+    ppm_t imgCPU2;
+    // copy the image
+    imgCPU2.width = imgCPU.width;
+    imgCPU2.height = imgCPU.height;
+    imgCPU2.data = (rgb_pixel_t *)malloc(imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
+    memcpy(imgCPU2.data, imgCPU.data, imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
+
+    // remove the blue channel from the image
+    removeRedChannel(&imgCPU2);
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_no_blue.ppm", imgCPU2.width, imgCPU2.height, imgCPU2.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
         return 1;
     }
