@@ -4,6 +4,7 @@ build/*
 .idea
 cmake-build-debug
 data/*
+.cache/
 
 # Prerequisites
 *.d

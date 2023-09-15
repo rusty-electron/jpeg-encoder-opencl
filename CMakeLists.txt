@@ -41,7 +41,7 @@ if (MSVC)
 endif()
 
 # Add source to this project's executable.
-add_executable (jpeg-encoder-opencl "src/OpenCLProject_JpegEncoder.cpp" ${CORE_SRC} ${OPENCL_SRC} )
+add_executable (jpeg-encoder-opencl "src/OpenCLProject_JpegEncoder.cpp" "src/utils.cpp" ${CORE_SRC} ${OPENCL_SRC} )
 target_include_directories (jpeg-encoder-opencl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "CORE" "OPENCL" "src" "lib")
 target_link_libraries (jpeg-encoder-opencl ${OpenCL_LIBRARY} dl boost_system) #imagehlp)
 

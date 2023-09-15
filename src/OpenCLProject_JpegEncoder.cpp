@@ -18,65 +18,11 @@
 #include <iostream>
 #include <cmath>
 
+#include "utils.hpp"
+
 //////////////////////////////////////////////////////////////////////////////
 // CPU implementation
 //////////////////////////////////////////////////////////////////////////////
-int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t *imgptr) {
-	char line[128];
-	FILE *fp = fopen(file_path, "rb");
-
-	if (fp) {
-		if (!fgets(line, sizeof(line), fp)) {
-			std::cout << "Error reading the file" << std::endl;
-			fclose(fp);
-			return -1;
-		}
-
-		if (strcmp(line, "P6\n")) {
-			std::cout << "Invalid file format" << std::endl;
-			fclose(fp);
-			return -1;
-		}
-
-		while (fgets(line, sizeof(line), fp)) {
-			if (line[0] == '#') {
-				continue;
-			} else {
-				char *token = strtok(line, " ");
-				*width = atoi(token);
-				token = strtok(NULL, " ");
-				*height = atoi(token);
-				fgets(line, sizeof(line), fp);
-				int max_value = atoi(line);
-				if (max_value != 255) {
-					std::cout << "Invalid maximum value" << std::endl;
-					fclose(fp);
-					return -1;
-				}
-				break;
-			}
-		}
-
-		unsigned int img_dims = *width * *height * channel;
-
-		// assign memory to the image
-		imgptr = new uint8_t[img_dims];
-
-		if (imgptr == NULL) {
-			std::cout << "Error allocating memory" << std::endl;
-			fclose(fp);
-			return -1;
-		}
-
-		fread(imgptr, sizeof(uint8_t), img_dims, fp);
-		fclose(fp);
-	} else {
-		std::cout << "Error opening the file" << std::endl;
-		return -1;
-	}
-	return 0;
-}
-
 int getDimension(uint8_t *header, int &pos){
     int dim=0;
     for ( ;header[pos]!='\n' && header[pos]!=' ';pos++)
@@ -275,12 +221,17 @@ int main(int argc, char** argv) {
 	// start here with your own code
 	uint8_t *imgCPU;
 	size_t width, height;
-	const size_t channel = 3;
 	
-	if (readPPMImage("../data/fruit.ppm", &width, &height, imgCPU) == -1) {
+	if (readPPMImage("../data/fruit.ppm", &width, &height, &imgCPU) == -1) {
 		std::cout << "Error reading the image" << std::endl;
 		return 1;
 	}
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_copy.ppm", width, height, imgCPU) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
 
 	// uint8_t *imgPtr = &image;
 	// int size;
