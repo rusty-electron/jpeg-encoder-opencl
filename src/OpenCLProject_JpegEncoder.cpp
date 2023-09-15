@@ -21,24 +21,9 @@
 //////////////////////////////////////////////////////////////////////////////
 // CPU implementation
 //////////////////////////////////////////////////////////////////////////////
-struct rgb_pixel {
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
-};
-
-typedef struct rgb_pixel rgb_pixel_t;
-
-struct PPMimage {
-	size_t w, h;
-	rgb_pixel_t *pixel;
-};
-
-typedef struct PPMimage ppm_t;
-
-int readPPMImage(const char* filepath, size_t* width, size_t* height, rgb_pixel_t** buffer) {
+int readPPMImage(const char * file_path, size_t *width, size_t *height, uint8_t *imgptr) {
 	char line[128];
-	FILE *fp = fopen(filepath, "rb");
+	FILE *fp = fopen(file_path, "rb");
 
 	if (fp) {
 		if (!fgets(line, sizeof(line), fp)) {
@@ -72,15 +57,18 @@ int readPPMImage(const char* filepath, size_t* width, size_t* height, rgb_pixel_
 			}
 		}
 
-		*buffer = (rgb_pixel_t *)malloc(*width * *height * sizeof(rgb_pixel_t));
+		unsigned int img_dims = *width * *height * channel;
 
-		if (*buffer == NULL) {
+		// assign memory to the image
+		imgptr = new uint8_t[img_dims];
+
+		if (imgptr == NULL) {
 			std::cout << "Error allocating memory" << std::endl;
 			fclose(fp);
 			return -1;
 		}
 
-		fread(*buffer, sizeof(rgb_pixel_t), *width * *height, fp);
+		fread(imgptr, sizeof(uint8_t), img_dims, fp);
 		fclose(fp);
 	} else {
 		std::cout << "Error opening the file" << std::endl;
@@ -89,25 +77,158 @@ int readPPMImage(const char* filepath, size_t* width, size_t* height, rgb_pixel_
 	return 0;
 }
 
-uint8_t AccessPixel(ppm_t *image, size_t x, size_t y, size_t channel) {
-	if (x >= image->w || y >= image->h) {
-		return -1;
-	} else {
-		if (channel == 0) {
-			return image->pixel[x + y * image->w].r;
-		} else if (channel == 1) {
-			return image->pixel[x + y * image->w].g;
-		} else if (channel == 2) {
-			return image->pixel[x + y * image->w].b;
-		} else {
-			return -1;
-		}
-	}
+int getDimension(uint8_t *header, int &pos){
+    int dim=0;
+    for ( ;header[pos]!='\n' && header[pos]!=' ';pos++)
+        dim = dim * 10 + (header[pos] - '0');
+    return dim;
 }
 
-void JpegEncoderHost(/* fill here*/) {
-	// stub for CPU implementation
+//function for test only
+void removeBlue(uint8_t *image, uint8_t *withoutblueimage, int size){
+    size_t i;
+    for (i=0;i<size;i=i+3){
+        withoutblueimage[i]=image[i];
+        withoutblueimage[i+1]=image[i+1];
+        withoutblueimage[i+2]=0;//blue component is set to 0
+		//std::cout << int(image[i]) << " " << i;
+    }
+}
 
+//function for test only
+void writePPM(FILE *file, uint8_t *header, uint8_t *image, int size){
+    fwrite( header , 15,  1, file);//writing header information
+    fwrite( image , size,  1, file);//writing image information
+	fclose(file);
+}
+
+void writePPM(FILE *file, uint8_t *header, double *image, int size){
+    fwrite( header , 15,  1, file);//writing header information
+    fwrite( image , size,  1, file);//writing image information
+	fclose(file);
+}
+
+
+void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
+	const double sqrt2 = std::sqrt(2.0);
+    const double PI = 3.14159265359;
+	double *dctImg;
+
+    dctImg = new double [width * height];
+
+    for (size_t u = 0; u < height; ++u) {
+        for (size_t v = 0; v < width; ++v) {
+            double sum = 0.0;
+
+            for (size_t x = 0; x < height; ++x) {
+                for (size_t y = 0; y < width; ++y) {
+                    double cu = (x == 0) ? 1.0 / sqrt2 : 1.0;
+                    double cv = (y == 0) ? 1.0 / sqrt2 : 1.0;
+
+                    size_t index = (x * width + y) * 3; // Start of YCbCr pixel
+                    double yVal = static_cast<double>(image[index]); // Y channel
+                    double cbVal = static_cast<double>(image[index + 1]); // Cb channel
+                    double crVal = static_cast<double>(image[index + 2]); // Cr channel
+
+                    sum += cu * cv * yVal * std::cos((2.0 * u + 1.0) * x * PI / (2.0 * height)) *
+                           std::cos((2.0 * v + 1.0) * y * PI / (2.0 * width));
+                }
+            }
+
+            dctImg[u * width + v] = sum;
+        }
+	}
+	FILE *write;
+	write = fopen("../data/dct.ppm","wb");
+	writePPM(write, header, dctImg, (int)height*width*3);
+}
+
+
+void cds(uint8_t* image, size_t width, size_t height, uint8_t *header){ 
+	
+	 for (int y = 0; y < height; y += 2) {
+        for (int x = 0; x < width; x += 2) {
+            int index1 = (y * width + x) * 3;
+            int index2 = (y * width + x + 1) * 3;
+            int index3 = ((y + 1) * width + x) * 3;
+            int index4 = ((y + 1) * width + x + 1) * 3;
+
+            uint8_t avgCb = (image[index1 + 1] + image[index2 + 1] + image[index3 + 1] + image[index4 + 1]) / 4;
+            uint8_t avgCr = (image[index1 + 2] + image[index2 + 2] + image[index3 + 2] + image[index4 + 2]) / 4;
+
+            image[index1 + 1] = avgCb;
+            image[index2 + 1] = avgCb;
+            image[index3 + 1] = avgCb;
+            image[index4 + 1] = avgCb;
+
+            image[index1 + 2] = avgCr;
+            image[index2 + 2] = avgCr;
+            image[index3 + 2] = avgCr;
+            image[index4 + 2] = avgCr;
+        }
+    }
+
+	FILE *write;
+	write = fopen("../data/cds.ppm","wb");
+	writePPM(write, header, image, (int)height*width*3);
+
+
+}
+
+void csc(uint8_t* image, size_t size, uint8_t *header, size_t width, size_t height){
+	uint8_t *cscImage;
+	size_t i;
+	for (i=0;i<size;i=i+3){
+		
+		//image[i] = 0.299*image[i];
+		image[i] = static_cast<uint8_t>(0.299 * image[i] + 0.587 * image[i+1] + 0.114 * image[i+2]);
+		image[i+1] = static_cast<uint8_t>(128 - 0.168736 * image[i] - 0.331264 * image[i+1] + 0.5 * image[i+2]);
+		image[i+2] = static_cast<uint8_t>(128 + 0.5 * image[i] - 0.418688 * image[i+1] - 0.081312 * image[i+2]);
+	}
+	FILE *newF;
+	newF = fopen("../data/csc.ppm","wb");
+	writePPM(newF, header, image, (int)size);
+	
+	//
+	
+}
+
+size_t easyPPMRead(uint8_t *image){
+	FILE *read, *write;
+	read = fopen("../data/fruit.ppm", "rb");
+	uint8_t header[15];
+	fread(header, 15, 1, read);
+	if (header[0] != 'P' || header[1] != '6'){
+		std::cout << "Wrong file format";
+	}
+
+	int width, height, clrs, pos = 3;
+	width = getDimension(header, pos);
+	pos++;
+	height = getDimension(header, pos);
+	std::cout << "Width:" << width << "\tHeight:" << height << '\n';
+	image = new uint8_t [width * height * 3];
+	
+	fread(image, width*height*3, 1, read);
+	uint8_t *withoutblueimage;
+	withoutblueimage = new uint8_t [width * height * 3];
+	removeBlue(image, withoutblueimage, width*height*3); //testing, to be removed later
+	write = fopen("../data/west_1_without_blue.ppm","wb");
+	writePPM(write, header, withoutblueimage, width*height*3);
+	fclose(read);
+	csc(image, width * height * 3, header, width, height);
+	cds(image, width, height, header);
+	dct(image, width, height, header);
+	return static_cast<size_t>(width * height * 3);
+	//return write;
+
+}
+
+void JpegEncoderHost(uint8_t *image) {
+	// stub for CPU implementation
+	size_t size;
+	size = easyPPMRead(image);
+	
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -152,19 +273,19 @@ int main(int argc, char** argv) {
 	cl::Kernel JpegEncoderKernel(program, "JpegEncoderKernel");
 	
 	// start here with your own code
-	ppm_t buffer;
+	uint8_t *imgCPU;
+	size_t width, height;
+	const size_t channel = 3;
 	
-	if (readPPMImage("../data/fruit.ppm", &buffer.w, &buffer.h, &buffer.pixel)) {
-		return -1;
+	if (readPPMImage("../data/fruit.ppm", &width, &height, imgCPU) == -1) {
+		std::cout << "Error reading the image" << std::endl;
+		return 1;
 	}
 
-	std::cout << "Image size: " << buffer.w << "x" << buffer.h << std::endl;
-	// access first pixel
-	std::cout << "First pixel: " << (int) AccessPixel(&buffer, 0, 0, 0) << "," << (int) AccessPixel(&buffer, 0, 0, 1) << "," << (int) AccessPixel(&buffer, 0, 0, 2) << std::endl;
-
-	// free up memory
-	free(buffer.pixel);
-
+	// uint8_t *imgPtr = &image;
+	// int size;
+	// size = easyPPMRead(imgPtr);
+	// csc(imgPtr, size);
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction
