@@ -158,6 +158,14 @@ void getNearest8x8ImageSize(size_t width, size_t height, size_t *newWidth, size_
 	*newHeight = std::ceil(height / 8.0) * 8;
 }
 
+void substractfromAll(ppm_d_t *img, double val) {
+	for (size_t i = 0; i < img->width * img->height; ++i) {
+		img->data[i].r -= val;
+		img->data[i].g -= val;
+		img->data[i].b -= val;
+	}
+}
+
 void copyToLargerImage(ppm_t *img, ppm_t *newImg) {
 	for (size_t y = 0; y < img->height; ++y) {
 		for (size_t x = 0; x < img->width; ++x) {
@@ -193,6 +201,77 @@ void addReversedPadding(ppm_t *img, size_t oldWidth, size_t oldHeight) {
 	}
 }
 
+void copyUIntToDoubleImage(ppm_t *img, ppm_d_t *newImg) {
+	for (size_t y = 0; y < img->height; ++y) {
+		for (size_t x = 0; x < img->width; ++x) {
+			rgb_pixel_t *pixel = getPixelPtr(img, x, y);
+			rgb_pixel_d_t *newPixel = &newImg->data[y * img->width + x];
+			newPixel->r = (double)pixel->r;
+			newPixel->g = (double)pixel->g;
+			newPixel->b = (double)pixel->b;
+		}
+	}
+}
+
+void copyDoubleToUIntImage(ppm_d_t *img, ppm_t *newImg) {
+	for (size_t y = 0; y < img->height; ++y) {
+		for (size_t x = 0; x < img->width; ++x) {
+			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+			rgb_pixel_t *newPixel = getPixelPtr(newImg, x, y);
+			newPixel->r = (uint8_t)pixel->r;
+			newPixel->g = (uint8_t)pixel->g;
+			newPixel->b = (uint8_t)pixel->b;
+		}
+	}
+}
+
+void performDCT(ppm_d_t *img) {
+	// perform DCT on each 8x8 block
+	for (size_t y = 0; y < img->height; y += 8) {
+		for (size_t x = 0; x < img->width; x += 8) {
+			// perform DCT on the block
+			performDCTBlock(img, x, y);
+		}
+	}
+}
+
+void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
+	// perform DCT on each channel
+	for (size_t u = 0; u < 8; ++u) {
+		for (size_t v = 0; v < 8; ++v) {
+			double alphaU = (u == 0) ? 1.0 : 1.0 / std::sqrt(2);
+			double alphaV = (v == 0) ? 1.0 : 1.0 / std::sqrt(2);
+
+			double sumR = 0.0;
+			double sumG = 0.0;
+			double sumB = 0.0;
+
+			for (size_t y = startY; y < startY + 8; ++y) {
+				for (size_t x = startX; x < startX + 8; ++x) {
+					rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+					sumR += pixel->r * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
+					sumG += pixel->g * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
+					sumB += pixel->b * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
+				}
+			}
+
+			sumR *= (alphaU * alphaV / 4.0);
+			sumG *= (alphaU * alphaV / 4.0);
+			sumB *= (alphaU * alphaV / 4.0);
+			// sumR *= 1/4.0;
+			// sumG *= 1/4.0;
+			// sumB *= 1/4.0;
+
+			int x_val = startX + u;
+			int y_val = startY + v;
+			rgb_pixel_d_t *pixel = &img->data[y_val * img->width + x_val];
+			pixel->r = sumR;
+			pixel->g = sumG;
+			pixel->b = sumB;
+		}
+	}
+}
+
 // preview the image pixels
 
 void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8) {
@@ -202,6 +281,19 @@ void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengt
 			rgb_pixel_t *pixel = getPixelPtr(img, x, y);
 			// provide three spaces for each pixel
 			std::cout << "(" << std::setw(3) << (int)pixel->r << ", " << std::setw(3) << (int)pixel->g << ", " << std::setw(3) << (int)pixel->b << ")   ";
+		}
+		std::cout << std::endl;
+	}
+}
+
+void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8) {
+	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
+	for (size_t y = startY; y < startY + lengthY; ++y) {
+		for (size_t x = startX; x < startX + lengthX; ++x) {
+			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+			// provide three spaces for each pixel
+			// only 2 decimal places
+			printf("(%6.2f,%6.2f,%6.2f) ", pixel->r, pixel->g, pixel->b);
 		}
 		std::cout << std::endl;
 	}

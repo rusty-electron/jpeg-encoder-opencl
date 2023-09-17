@@ -204,10 +204,22 @@ int main(int argc, char** argv) {
 		std::cout << "Error writing the image" << std::endl;
 		return 1;
 	}
-	// uint8_t *imgPtr = &image;
-	// int size;
-	// size = easyPPMRead(imgPtr);
-	// csc(imgPtr, size);
+
+	ppm_d_t imgCPU_d;
+	// copy the image
+	imgCPU_d.width = imgCPU3.width;
+	imgCPU_d.height = imgCPU3.height;
+	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
+	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
+
+	substractfromAll(&imgCPU_d, 128.0);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+	
+	performDCT(&imgCPU_d);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction
