@@ -174,7 +174,25 @@ int main(int argc, char** argv) {
         std::cout << "Error writing the image" << std::endl;
         return 1;
     }
+	
+	// get 8x8 divisible image size
+	size_t newWidth, newHeight;
+	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
 
+	ppm_t imgCPU3;
+	// copy the image
+	imgCPU3.width = newWidth;
+	imgCPU3.height = newHeight;
+	imgCPU3.data = (rgb_pixel_t *)malloc(newWidth * newHeight * sizeof(rgb_pixel_t));
+	copyToLargerImage(&imgCPU, &imgCPU3);
+
+	previewImage(&imgCPU3, 248, 0, 8, 8);
+
+	// write the image to a file
+	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+		std::cout << "Error writing the image" << std::endl;
+		return 1;
+	}
 	// uint8_t *imgPtr = &image;
 	// int size;
 	// size = easyPPMRead(imgPtr);

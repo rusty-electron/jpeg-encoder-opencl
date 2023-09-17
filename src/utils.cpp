@@ -1,3 +1,5 @@
+#include <iomanip>
+#include <cmath>
 #include "utils.hpp"
 
 int readPPMImage(const char * file_path, size_t *width, size_t *height, rgb_pixel_t **imgptr) {
@@ -115,6 +117,10 @@ void performCDS(ppm_t *img) {
 	}
 }
 
+void performDCT(ppm_t *img) {
+	
+}
+
 rgb_pixel_t getPixel(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x];
 }
@@ -145,4 +151,56 @@ void setPixelG(ppm_t *img, size_t x, size_t y, uint8_t val) {
 
 void setPixelB(ppm_t *img, size_t x, size_t y, uint8_t val) {
 	img->data[y * img->width + x].b = val;
+}
+
+void getNearest8x8ImageSize(size_t width, size_t height, size_t *newWidth, size_t *newHeight) {
+	*newWidth = std::ceil(width / 8.0) * 8;
+	*newHeight = std::ceil(height / 8.0) * 8;
+}
+
+void copyToLargerImage(ppm_t *img, ppm_t *newImg) {
+	for (size_t y = 0; y < img->height; ++y) {
+		for (size_t x = 0; x < img->width; ++x) {
+			rgb_pixel_t *pixel = getPixelPtr(img, x, y);
+			setPixelR(newImg, x, y, pixel->r);
+			setPixelG(newImg, x, y, pixel->g);
+			setPixelB(newImg, x, y, pixel->b);
+		}
+	}
+}
+
+void addSymmetricPadding(ppm_t *img, size_t newWidth, size_t newHeight) {
+	// add padding to the right
+	for (size_t y = 0; y < img->height; ++y) {
+		rgb_pixel_t *pixel = getPixelPtr(img, img->width - 1, y);
+		for (size_t x = img->width; x < newWidth; ++x) {
+			setPixelR(img, x, y, pixel->r);
+			setPixelG(img, x, y, pixel->g);
+			setPixelB(img, x, y, pixel->b);
+		}
+	}
+
+	// add padding to the bottom
+	for (size_t x = 0; x < newWidth; ++x) {
+		rgb_pixel_t *pixel = getPixelPtr(img, x, img->height - 1);
+		for (size_t y = img->height; y < newHeight; ++y) {
+			setPixelR(img, x, y, pixel->r);
+			setPixelG(img, x, y, pixel->g);
+			setPixelB(img, x, y, pixel->b);
+		}
+	}
+}
+
+// preview the image pixels
+
+void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8) {
+	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
+	for (size_t y = startY; y < startY + lengthY; ++y) {
+		for (size_t x = startX; x < startX + lengthX; ++x) {
+			rgb_pixel_t *pixel = getPixelPtr(img, x, y);
+			// provide three spaces for each pixel
+			std::cout << "(" << std::setw(3) << (int)pixel->r << ", " << std::setw(3) << (int)pixel->g << ", " << std::setw(3) << (int)pixel->b << ")   ";
+		}
+		std::cout << std::endl;
+	}
 }

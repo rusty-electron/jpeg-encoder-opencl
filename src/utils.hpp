@@ -36,3 +36,8 @@ uint8_t getPixelB(ppm_t *, size_t, size_t);
 void setPixelR(ppm_t *, size_t, size_t, uint8_t);
 void setPixelG(ppm_t *, size_t, size_t, uint8_t);
 void setPixelB(ppm_t *, size_t, size_t, uint8_t);
+
+void copyToLargerImage(ppm_t *, ppm_t *);
+void getNearest8x8ImageSize(size_t, size_t, size_t *, size_t *);
+
+void previewImage(ppm_t *, size_t, size_t, size_t, size_t);
