@@ -39,5 +39,6 @@ void setPixelB(ppm_t *, size_t, size_t, uint8_t);
 
 void copyToLargerImage(ppm_t *, ppm_t *);
 void getNearest8x8ImageSize(size_t, size_t, size_t *, size_t *);
+void addReversedPadding(ppm_t *, size_t, size_t);
 
 void previewImage(ppm_t *, size_t, size_t, size_t, size_t);

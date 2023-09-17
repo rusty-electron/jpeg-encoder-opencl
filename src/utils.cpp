@@ -169,11 +169,12 @@ void copyToLargerImage(ppm_t *img, ppm_t *newImg) {
 	}
 }
 
-void addSymmetricPadding(ppm_t *img, size_t newWidth, size_t newHeight) {
+void addReversedPadding(ppm_t *img, size_t oldWidth, size_t oldHeight) {
 	// add padding to the right
-	for (size_t y = 0; y < img->height; ++y) {
-		rgb_pixel_t *pixel = getPixelPtr(img, img->width - 1, y);
-		for (size_t x = img->width; x < newWidth; ++x) {
+	for (size_t y = 0; y < oldHeight; ++y) {
+		for (size_t x = oldWidth; x < img->width; ++x) {
+			int diff = x - oldWidth + 1;
+			rgb_pixel_t *pixel = getPixelPtr(img, oldWidth - diff, y);
 			setPixelR(img, x, y, pixel->r);
 			setPixelG(img, x, y, pixel->g);
 			setPixelB(img, x, y, pixel->b);
@@ -181,9 +182,10 @@ void addSymmetricPadding(ppm_t *img, size_t newWidth, size_t newHeight) {
 	}
 
 	// add padding to the bottom
-	for (size_t x = 0; x < newWidth; ++x) {
-		rgb_pixel_t *pixel = getPixelPtr(img, x, img->height - 1);
-		for (size_t y = img->height; y < newHeight; ++y) {
+	for (size_t y = oldHeight; y < img->height; ++y) {
+		for (size_t x = 0; x < img->width; ++x) {
+			int diff = y - oldHeight + 1;
+			rgb_pixel_t *pixel = getPixelPtr(img, x, oldHeight - diff);
 			setPixelR(img, x, y, pixel->r);
 			setPixelG(img, x, y, pixel->g);
 			setPixelB(img, x, y, pixel->b);

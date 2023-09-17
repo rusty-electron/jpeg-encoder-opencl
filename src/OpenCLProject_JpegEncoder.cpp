@@ -193,6 +193,17 @@ int main(int argc, char** argv) {
 		std::cout << "Error writing the image" << std::endl;
 		return 1;
 	}
+
+	// add padding to the image
+	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
+
+	previewImage(&imgCPU3, 248, 0, 8, 8);
+
+	// write the image to a file
+	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+		std::cout << "Error writing the image" << std::endl;
+		return 1;
+	}
 	// uint8_t *imgPtr = &image;
 	// int size;
 	// size = easyPPMRead(imgPtr);
