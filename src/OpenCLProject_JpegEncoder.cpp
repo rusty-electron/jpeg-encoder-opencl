@@ -220,6 +220,10 @@ int main(int argc, char** argv) {
 
 	previewImageD(&imgCPU_d, 248, 0, 8, 8);
 
+	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction

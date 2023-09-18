@@ -298,3 +298,18 @@ void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t le
 		std::cout << std::endl;
 	}
 }
+
+void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
+	for (size_t y = 0; y < img->height; y += 8) {
+		for (size_t x = 0; x < img->width; x += 8) {
+			for (size_t v = 0; v < 8; ++v) {
+				for (size_t u = 0; u < 8; ++u) {
+					rgb_pixel_d_t *pixel = &img->data[(y + v) * img->width + (x + u)];
+					pixel->r = std::round(pixel->r / quant_mat_lum[v][u]);
+					pixel->g = std::round(pixel->g / quant_mat_chrom[v][u]);
+					pixel->b = std::round(pixel->b / quant_mat_chrom[v][u]);
+				}
+			}
+		}
+	}
+}
