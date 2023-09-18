@@ -38,6 +38,7 @@
 
 ## resources
 * [yt vid](https://www.youtube.com/watch?v=Kv1Hiv3ox8I)
+* [blog article](https://www.thewebmaster.com/jpeg-definitive-guide/)
 
 ## note
 * keep track of citations 📰
