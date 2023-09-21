@@ -73,8 +73,105 @@ void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
 	writePPM(write, header, dctImg, (int)height*width*3);
 }
 
-void JpegEncoderHost(uint8_t *image) {
+int JpegEncoderHost(ppm_t imgCPU) {
+	// write the image to a file
+    if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
+    // create a copy of a structure
+    ppm_t imgCPU2;
+    // copy the image
+    imgCPU2.width = imgCPU.width;
+    imgCPU2.height = imgCPU.height;
+    imgCPU2.data = (rgb_pixel_t *)malloc(imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
+    memcpy(imgCPU2.data, imgCPU.data, imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
+
+    // remove the blue channel from the image
+    removeRedChannel(&imgCPU2);
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_no_blue.ppm", imgCPU2.width, imgCPU2.height, imgCPU2.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
+    // test getter and setter functions
+    setPixelR(&imgCPU2, 0, 0, 1);
+    setPixelG(&imgCPU2, 0, 0, 2);
+    setPixelB(&imgCPU2, 0, 0, 3);
+    std::cout << "R: " << (int)getPixelR(&imgCPU2, 0, 0) << std::endl;
+    std::cout << "G: " << (int)getPixelG(&imgCPU2, 0, 0) << std::endl;
+    std::cout << "B: " << (int)getPixelB(&imgCPU2, 0, 0) << std::endl;
+
+    // perform CSC
+    performCSC(&imgCPU);
+
+	// write the image to a file
+    if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
+
+    // perform CDS
+    performCDS(&imgCPU);
+
+    // write the image to a file
+    if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+        std::cout << "Error writing the image" << std::endl;
+        return 1;
+    }
 	
+	// get 8x8 divisible image size
+	size_t newWidth, newHeight;
+	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+
+	ppm_t imgCPU3;
+	// copy the image
+	imgCPU3.width = newWidth;
+	imgCPU3.height = newHeight;
+	imgCPU3.data = (rgb_pixel_t *)malloc(newWidth * newHeight * sizeof(rgb_pixel_t));
+	copyToLargerImage(&imgCPU, &imgCPU3);
+
+	previewImage(&imgCPU3, 248, 0, 8, 8);
+
+	// write the image to a file
+	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+		std::cout << "Error writing the image" << std::endl;
+		return 1;
+	}
+
+	// add padding to the image
+	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
+
+	previewImage(&imgCPU3, 248, 0, 8, 8);
+
+	// write the image to a file
+	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+		std::cout << "Error writing the image" << std::endl;
+		return 1;
+	}
+
+	ppm_d_t imgCPU_d;
+	// copy the image
+	imgCPU_d.width = imgCPU3.width;
+	imgCPU_d.height = imgCPU3.height;
+	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
+	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
+
+	substractfromAll(&imgCPU_d, 128.0);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+	
+	performDCT(&imgCPU_d);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+
+	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
+
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -147,6 +244,9 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	// perform the JPEG encoding on the CPU
+	JpegEncoderHost(imgCPU);
+
 	// copy the image onto h_input for GPU processing
 	for (size_t i = 0; i < imgCPU.width * imgCPU.height; ++i) {
 		h_input[i] = imgCPU.data[i].r;
@@ -172,40 +272,6 @@ int main(int argc, char** argv) {
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_output, true, 0, size, h_outputGpu.data(), NULL, NULL);
 
-    // write the image to a file
-    if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
-        std::cout << "Error writing the image" << std::endl;
-        return 1;
-    }
-
-    // create a copy of a structure
-    ppm_t imgCPU2;
-    // copy the image
-    imgCPU2.width = imgCPU.width;
-    imgCPU2.height = imgCPU.height;
-    imgCPU2.data = (rgb_pixel_t *)malloc(imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
-    memcpy(imgCPU2.data, imgCPU.data, imgCPU.width * imgCPU.height * sizeof(rgb_pixel_t));
-
-    // remove the blue channel from the image
-    removeRedChannel(&imgCPU2);
-
-    // write the image to a file
-    if (writePPMImage("../data/fruit_no_blue.ppm", imgCPU2.width, imgCPU2.height, imgCPU2.data) == -1) {
-        std::cout << "Error writing the image" << std::endl;
-        return 1;
-    }
-
-    // test getter and setter functions
-    setPixelR(&imgCPU2, 0, 0, 1);
-    setPixelG(&imgCPU2, 0, 0, 2);
-    setPixelB(&imgCPU2, 0, 0, 3);
-    std::cout << "R: " << (int)getPixelR(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "G: " << (int)getPixelG(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "B: " << (int)getPixelB(&imgCPU2, 0, 0) << std::endl;
-
-    // perform CSC
-    performCSC(&imgCPU);
-
 	// print the y, cb, cr values of the first pixel from imgCPU
 	std::cout << "Values of the first pixel from imgCPU:" << std::endl;
 	std::cout << "Y: " << (int)getPixelR(&imgCPU, 0, 0) << std::endl;
@@ -227,71 +293,6 @@ int main(int argc, char** argv) {
 	std::cout << "Y: " << (int)h_outputGpu[imgCPU.width * imgCPU.height - 1] << std::endl;
 	std::cout << "Cb: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height - 1] << std::endl;
 	std::cout << "Cr: " << (int)h_outputGpu[3 * imgCPU.width * imgCPU.height - 1] << std::endl;
-
-
-    // write the image to a file
-    if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
-        std::cout << "Error writing the image" << std::endl;
-        return 1;
-    }
-
-    // perform CDS
-    performCDS(&imgCPU);
-
-    // write the image to a file
-    if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
-        std::cout << "Error writing the image" << std::endl;
-        return 1;
-    }
-	
-	// get 8x8 divisible image size
-	size_t newWidth, newHeight;
-	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
-
-	ppm_t imgCPU3;
-	// copy the image
-	imgCPU3.width = newWidth;
-	imgCPU3.height = newHeight;
-	imgCPU3.data = (rgb_pixel_t *)malloc(newWidth * newHeight * sizeof(rgb_pixel_t));
-	copyToLargerImage(&imgCPU, &imgCPU3);
-
-	previewImage(&imgCPU3, 248, 0, 8, 8);
-
-	// write the image to a file
-	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
-		std::cout << "Error writing the image" << std::endl;
-		return 1;
-	}
-
-	// add padding to the image
-	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
-
-	previewImage(&imgCPU3, 248, 0, 8, 8);
-
-	// write the image to a file
-	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
-		std::cout << "Error writing the image" << std::endl;
-		return 1;
-	}
-
-	ppm_d_t imgCPU_d;
-	// copy the image
-	imgCPU_d.width = imgCPU3.width;
-	imgCPU_d.height = imgCPU3.height;
-	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
-	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
-
-	substractfromAll(&imgCPU_d, 128.0);
-
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
-	
-	performDCT(&imgCPU_d);
-
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
-
-	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
-
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
 
 	// Check whether results are correct
 	std::size_t errorCount = 0;
