@@ -38,6 +38,7 @@ struct PPMimage_d {
 
 typedef struct PPMimage_d ppm_d_t;
 
+// for 50% quality
 const unsigned int quant_mat_lum[8][8] = {
     {16, 11, 10, 16, 24, 40, 51, 61},
     {12, 12, 14, 19, 26, 58, 60, 55},

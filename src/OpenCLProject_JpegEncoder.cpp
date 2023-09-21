@@ -114,10 +114,31 @@ int main(int argc, char** argv) {
 	cl::Program program = OpenCL::loadProgramSource(context, "../src/OpenCLProject_JpegEncoder.cl");
 	// Compile the source code. This is similar to program.build(devices) but will print more detailed error messages
 	OpenCL::buildProgram(program, devices);
-
-	// Create a kernel object
-	cl::Kernel JpegEncoderKernel(program, "JpegEncoderKernel");
 	
+	// Declare some values
+	std::size_t wgSizeX = 16; // Number of work items per work group in X direction
+	std::size_t wgSizeY = 16; // Number of work items per work group in Y direction
+	std::size_t countX = wgSizeX * 16; // Overall number of work items in X direction = Number of elements in X direction
+	std::size_t countY = wgSizeY * 16;
+	countX *= 3; countY *= 3; // image channels
+	std::size_t count = countX * countY; // Overall number of elements
+	std::size_t size = count * sizeof (cl_uint); // Size of data in bytes
+
+	// Allocate space for output data from CPU and GPU on the host
+	std::vector<cl_uint> h_input (count);
+	std::vector<cl_uint> h_outputGpu (count);
+
+	// Allocate space for input and output data on the device
+	cl::Buffer d_input = cl::Buffer(context, CL_MEM_READ_WRITE, size);
+	cl::Buffer d_output = cl::Buffer(context, CL_MEM_READ_WRITE, size);
+
+	// Initialize memory to 0xff (useful for debugging because otherwise GPU memory will contain information from last execution)
+	memset(h_input.data(), 255, size);
+	memset(h_outputGpu.data(), 255, size);
+
+	queue.enqueueWriteBuffer(d_input, true, 0, size, h_input.data());
+	queue.enqueueWriteBuffer(d_output, true, 0, size, h_outputGpu.data());
+
 	// start here with your own code
     ppm_t imgCPU;
 	
@@ -125,6 +146,31 @@ int main(int argc, char** argv) {
 		std::cout << "Error reading the image" << std::endl;
 		return 1;
 	}
+
+	// copy the image onto h_input for GPU processing
+	for (size_t i = 0; i < imgCPU.width * imgCPU.height; ++i) {
+		h_input[i] = imgCPU.data[i].r;
+		h_input[i + imgCPU.width * imgCPU.height] = imgCPU.data[i].g;
+		h_input[i + 2 * imgCPU.width * imgCPU.height] = imgCPU.data[i].b;
+	}
+
+	// Copy input data to device
+	queue.enqueueWriteBuffer(d_input, true, 0, size, h_input.data(), NULL, NULL);
+
+	// create a kernel object for color conversion
+	cl::Kernel colorConversionKernel(program, "colorConversionKernel");
+
+	// Set kernel parameters
+	colorConversionKernel.setArg<cl::Buffer>(0, d_input);
+	colorConversionKernel.setArg<cl::Buffer>(1, d_output);
+	// convert size_t to unsigned int
+	colorConversionKernel.setArg<cl_uint>(2, (cl_uint)imgCPU.width);
+	colorConversionKernel.setArg<cl_uint>(3, (cl_uint)imgCPU.height);
+
+	// Launch kernel on the compute device
+	queue.enqueueNDRangeKernel(colorConversionKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	// Copy output data back to host
+	queue.enqueueReadBuffer(d_output, true, 0, size, h_outputGpu.data(), NULL, NULL);
 
     // write the image to a file
     if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
@@ -159,6 +205,29 @@ int main(int argc, char** argv) {
 
     // perform CSC
     performCSC(&imgCPU);
+
+	// print the y, cb, cr values of the first pixel from imgCPU
+	std::cout << "Values of the first pixel from imgCPU:" << std::endl;
+	std::cout << "Y: " << (int)getPixelR(&imgCPU, 0, 0) << std::endl;
+	std::cout << "Cb: " << (int)getPixelG(&imgCPU, 0, 0) << std::endl;
+	std::cout << "Cr: " << (int)getPixelB(&imgCPU, 0, 0) << std::endl;
+	// last pixel 
+	std::cout << "Values of the last pixel from imgCPU:" << std::endl;
+	std::cout << "Y: " << (int)getPixelR(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
+	std::cout << "Cb: " << (int)getPixelG(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
+	std::cout << "Cr: " << (int)getPixelB(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
+
+	// print the y, cb, cr values of the first pixel from d_outputGpu
+	std::cout << "Values of the first pixel from d_outputGpu:" << std::endl;
+	std::cout << "Y: " << (int)h_outputGpu[0] << std::endl;
+	std::cout << "Cb: " << (int)h_outputGpu[imgCPU.width * imgCPU.height] << std::endl;
+	std::cout << "Cr: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height] << std::endl;
+	// last pixel
+	std::cout << "Values of the last pixel from d_outputGpu:" << std::endl;
+	std::cout << "Y: " << (int)h_outputGpu[imgCPU.width * imgCPU.height - 1] << std::endl;
+	std::cout << "Cb: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height - 1] << std::endl;
+	std::cout << "Cr: " << (int)h_outputGpu[3 * imgCPU.width * imgCPU.height - 1] << std::endl;
+
 
     // write the image to a file
     if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {

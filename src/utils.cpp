@@ -117,10 +117,6 @@ void performCDS(ppm_t *img) {
 	}
 }
 
-void performDCT(ppm_t *img) {
-	
-}
-
 rgb_pixel_t getPixel(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x];
 }
