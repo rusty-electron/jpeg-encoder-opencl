@@ -171,6 +171,12 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
 
 	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+
+	// initialize an linear array with the size of the image
+	float *image = new float[imgCPU_d.width * imgCPU_d.height * 3];
+	
+	diagonalZigZag(&imgCPU_d, image);
+	
 	return 0;
 }
 
@@ -294,11 +300,6 @@ int main(int argc, char** argv) {
 	std::cout << "Cb: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height - 1] << std::endl;
 	std::cout << "Cr: " << (int)h_outputGpu[3 * imgCPU.width * imgCPU.height - 1] << std::endl;
 
-	// initialize an linear array with the size of the image
-	u_int8_t *image = new uint8_t[imgCPU_d.width * imgCPU_d.height * 3];
-	
-	zigZag(&imgCPU_d, image);
-	//testQuantize(&imgCPU3, 100);
 
 	//previewImage(&imgCPU3, 248, 0, 8, 8);
 	// uint8_t *imgPtr = &image;

@@ -342,7 +342,7 @@ void testQuantize(ppm_t *img, double val=10)
 	}
 }
 
- void zigZag(ppm_d_t *img, uint8_t *zigzagOrder)
+ void ZigZag(ppm_d_t *img, float *zigzagOrder)
  {	
 	bool up = true;
 	int x = 0, y = 0;
@@ -383,8 +383,81 @@ void testQuantize(ppm_t *img, double val=10)
 	}
 // Print the last 30 elements of the zigzag order
 int numElements = img->width * img->height * 3;
-for (int i = numElements - 30; i < numElements; i++) {
-    printf("%d ", zigzagOrder[i]);
+for (int i = 0; i < 40; i++) {
+    printf("%f ", zigzagOrder[i]);
 }
 printf("\n");
  }
+
+// Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
+void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
+    const int n = img->height;
+    const int m = img->width;
+    
+    int index = 0; // Index for zigzagOrder
+	rgb_pixel_d_t *pixels = img->data;
+
+    for (int diag = 0; diag < n + m - 1; ++diag) {
+        const auto i_min = std::max(0, diag - m + 1);
+        const auto i_max = i_min + std::min(diag, n - 1);
+
+        for (auto i = i_min; i <= i_max; ++i) {
+            const auto row = diag % 2 ? i : (diag - i);
+            const auto col = diag % 2 ? (diag - i) : i;
+			if (index < img->width * img->height * 3) {
+				// (row, col) is the current element
+				zigzagOrder[index] = pixels[col * img->width + row].r;
+				zigzagOrder[index + 1] = pixels[col * img->width + row].g;
+				zigzagOrder[index + 2] = pixels[col * img->width + row].b;
+
+				index += 3;
+			}
+        }
+    }
+	//Print the last 30 elements of the zigzag order
+	int numElements = img->width * img->height * 3;
+	for (int i = 0; i < 40; i++) {
+		printf("%f ", zigzagOrder[i]);
+	}
+}
+
+// // Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
+// void diagonalZigZag(ppm_d_t* img, uint8_t* zigzagOrder) {
+//     int numRows = img->height;
+//     int numCols = img->width;
+//     rgb_pixel_d_t* pixels = img->data; // Pointer to image data (pixels have the structure of rgbrgbrgrb)
+//     int index = 0; // Index for zigzagOrder
+
+//     for (int sum = 0; sum < numRows + numCols - 1; sum++) {
+//         if (sum % 2 == 0) {
+//             // Even diagonal (bottom to top)
+//             int row = std::min(sum, numRows - 1);
+//             int col = sum - row;
+
+//             for (; row >= 0 && col < numCols; row--, col++) {
+//                 // Store the pixel values in the zigzagOrder array
+//                 zigzagOrder[index] = pixels[col * numCols + row].r;
+//                 zigzagOrder[index + 1] = pixels[col * numCols + row].g;
+//                 zigzagOrder[index + 2] = pixels[col * numCols + row].b;
+//                 index += 3; // Move to the next position in zigzagOrder
+//             }
+//         } else {
+//             // Odd diagonal (top to bottom)
+//             int col = std::min(sum, numCols - 1);
+//             int row = sum - col;
+
+//             for (; col >= 0 && row < numRows; col--, row++) {
+//                 // Store the pixel values in the zigzagOrder array
+//                 zigzagOrder[index] = pixels[col * numCols + row].r;
+//                 zigzagOrder[index + 1] = pixels[col * numCols + row].g;
+//                 zigzagOrder[index + 2] = pixels[col * numCols + row].b;
+//                 index += 3; // Move to the next position in zigzagOrder
+//             }
+//         }
+//     }
+// 	//Print the last 30 elements of the zigzag order
+// 	int numElements = img->width * img->height * 3;
+// 	for (int i = 0; i < 40; i++) {
+// 		printf("%d ", zigzagOrder[i]);
+// }
+// }
