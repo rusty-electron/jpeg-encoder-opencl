@@ -145,7 +145,7 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	// add padding to the image
 	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
 
-	previewImage(&imgCPU3, 248, 0, 8, 8);
+	//previewImage(&imgCPU3, 248, 0, 8, 8);
 
 	// write the image to a file
 	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
@@ -162,7 +162,7 @@ int JpegEncoderHost(ppm_t imgCPU) {
 
 	substractfromAll(&imgCPU_d, 128.0);
 
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+	//previewImageD(&imgCPU_d, 248, 0, 8, 8);
 	
 	performDCT(&imgCPU_d);
 
@@ -294,6 +294,17 @@ int main(int argc, char** argv) {
 	std::cout << "Cb: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height - 1] << std::endl;
 	std::cout << "Cr: " << (int)h_outputGpu[3 * imgCPU.width * imgCPU.height - 1] << std::endl;
 
+	// initialize an linear array with the size of the image
+	u_int8_t *image = new uint8_t[imgCPU_d.width * imgCPU_d.height * 3];
+	
+	zigZag(&imgCPU_d, image);
+	//testQuantize(&imgCPU3, 100);
+
+	//previewImage(&imgCPU3, 248, 0, 8, 8);
+	// uint8_t *imgPtr = &image;
+	// int size;
+	// size = easyPPMRead(imgPtr);
+	// csc(imgPtr, size);
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction

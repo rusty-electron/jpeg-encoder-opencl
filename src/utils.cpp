@@ -81,6 +81,13 @@ void removeRedChannel(ppm_t *img) {
 }
 
 void performCSC(ppm_t *img) {
+	/* CSC = Color Space Conversion
+	 * Y = 0.299 * R + 0.587 * G + 0.114 * B
+	 * Cb = -0.168736 * R - 0.331264 * G + 0.5 * B + 128
+	 * Cr = 0.5 * R - 0.418688 * G - 0.081312 * B + 128 
+	 * Input: RGB struct
+	 * Output: Convert RGB to YCbCr color space
+	*/ 
 	for (size_t i = 0; i < img->width * img->height; ++i) {
 		rgb_pixel_t *pixel = &img->data[i];
 		uint8_t r = pixel->r;
@@ -94,6 +101,12 @@ void performCSC(ppm_t *img) {
 }
 
 void performCDS(ppm_t *img) {
+	/* CDS = Color Downsampling
+	 * Cb = (Cb1 + Cb2 + Cb3 + Cb4) / 4
+	 * Cr = (Cr1 + Cr2 + Cr3 + Cr4) / 4
+	 * Input: YCbCr struct
+	 * Output: Downsampling Cb and Cr channels (used 2x2 average)
+	*/
 	for (size_t y = 0; y < img->height; y += 2) {
 		for (size_t x = 0; x < img->width; x += 2) {
 			rgb_pixel_t *pixel1 = getPixelPtr(img, x, y);
@@ -126,7 +139,7 @@ rgb_pixel_t* getPixelPtr(ppm_t *img, size_t x, size_t y) {
 }
 
 uint8_t getPixelR(ppm_t *img, size_t x, size_t y) {
-	return img->data[y * img->width + x].r;
+	return img->data[y * img->width + x].r; // img->height
 }
 
 uint8_t getPixelG(ppm_t *img, size_t x, size_t y) {
@@ -309,3 +322,69 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 		}
 	}
 }
+// void testQuantize(ppm_t *img, double val=10){
+// 	for(size_t i = 0;i < img->width * img->height; ++i){
+// 		rgb_pixel_t pixel = img->data[i];
+// 		pixel.r = std::round(pixel.r / val);
+// 		pixel.g = std::round(pixel.g / val);
+// 		pixel.b = std::round(pixel.b / val);
+// 		img->data[i] = pixel;
+// 	}
+// }
+
+void testQuantize(ppm_t *img, double val=10)
+{
+	for(size_t i = 0;i < img->width * img->height; ++i){
+		rgb_pixel_t *pixel = &img->data[i];
+		pixel->r = std::round(pixel->r / val);
+		pixel->g = std::round(pixel->g / val);
+		pixel->b = std::round(pixel->b / val);
+	}
+}
+
+ void zigZag(ppm_d_t *img, uint8_t *zigzagOrder)
+ {	
+	bool up = true;
+	int x = 0, y = 0;
+    int index = 0; // Index for zigzagOrder
+    rgb_pixel_d_t *pixels = img->data; // Pointer to image data (pixels have the structure of rgbrgbrgrb)
+
+    while (index < img->width * img->height*3) {
+        // Save the pixel at the current position in zigzag order
+		zigzagOrder[index] = pixels[y * img->width + x].r;
+		zigzagOrder[index + 1] = pixels[y * img->width + x].g;
+		zigzagOrder[index + 2] = pixels[y * img->width + x].b;
+        // Move to the next position in zigzag order
+         if (up) {
+            if (x == 0 && y < img->width - 1) {
+                y++;
+                up = false;
+            } else if (y == img->width - 1) {
+                x++;
+                up = false;
+            } else {
+                x--;
+                y++;
+            }
+        } else {
+            if (y == 0 && x < img->height - 1) {
+                x++;
+                up = true;
+            } else if (x == img->height  - 1) {
+                y++;
+                up = true;
+            } else {
+                x++;
+                y--;
+            }
+        }
+
+        index += 3;
+	}
+// Print the last 30 elements of the zigzag order
+int numElements = img->width * img->height * 3;
+for (int i = numElements - 30; i < numElements; i++) {
+    printf("%d ", zigzagOrder[i]);
+}
+printf("\n");
+ }

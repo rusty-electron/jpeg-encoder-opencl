@@ -94,3 +94,9 @@ void performQuantization(ppm_d_t *, const unsigned int[][8], const unsigned int[
 void previewImage(ppm_t *, size_t, size_t, size_t, size_t);
 void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t);
 
+void previewImage(ppm_t *, size_t, size_t, size_t, size_t);
+
+//void testQuantize(ppm_t *, double);
+
+ void zigZag(ppm_d_t * ,u_int8_t *);
+
