@@ -176,7 +176,35 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	float *image = new float[imgCPU_d.width * imgCPU_d.height * 3];
 	
 	diagonalZigZag(&imgCPU_d, image);
-	
+
+	// Seperate the channels
+	float *y = new float[imgCPU_d.width * imgCPU_d.height];
+	float *cb = new float[imgCPU_d.width * imgCPU_d.height];
+	float *cr = new float[imgCPU_d.width * imgCPU_d.height];
+
+	seperateChannels(&imgCPU_d, image, y, cb, cr);
+
+	// RLE encoding
+	float *y_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	float *cb_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	float *cr_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	int imgSize = imgCPU_d.width * imgCPU_d.height;
+
+	RLE(y, y_rle,imgSize);
+	RLE(cb, cb_rle, imgSize);
+	RLE(cr, cr_rle, imgSize);
+
+	//Print first 20 values of y and y_rle
+	std::cout << "First 20 values of y:" << std::endl;
+	for (int i = 0; i < 20; i++) {
+		std::cout << cb[i] << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "First 20 values of y_rle:" << std::endl;
+	for (int i = 0; i < 20; i++) {
+		std::cout << cb_rle[i] << " ";
+	}
+	std::cout << std::endl;
 	return 0;
 }
 

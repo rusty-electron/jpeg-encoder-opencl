@@ -98,6 +98,7 @@ void previewImage(ppm_t *, size_t, size_t, size_t, size_t);
 
 //void testQuantize(ppm_t *, double);
 
-void ZigZag(ppm_d_t * ,float *);
-
 void diagonalZigZag(ppm_d_t * ,float *);
+
+void seperateChannels(ppm_d_t * ,float * , float * , float * , float * );
+void RLE(float *, float * , int );

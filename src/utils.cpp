@@ -322,15 +322,6 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 		}
 	}
 }
-// void testQuantize(ppm_t *img, double val=10){
-// 	for(size_t i = 0;i < img->width * img->height; ++i){
-// 		rgb_pixel_t pixel = img->data[i];
-// 		pixel.r = std::round(pixel.r / val);
-// 		pixel.g = std::round(pixel.g / val);
-// 		pixel.b = std::round(pixel.b / val);
-// 		img->data[i] = pixel;
-// 	}
-// }
 
 void testQuantize(ppm_t *img, double val=10)
 {
@@ -342,53 +333,7 @@ void testQuantize(ppm_t *img, double val=10)
 	}
 }
 
- void ZigZag(ppm_d_t *img, float *zigzagOrder)
- {	
-	bool up = true;
-	int x = 0, y = 0;
-    int index = 0; // Index for zigzagOrder
-    rgb_pixel_d_t *pixels = img->data; // Pointer to image data (pixels have the structure of rgbrgbrgrb)
-
-    while (index < img->width * img->height*3) {
-        // Save the pixel at the current position in zigzag order
-		zigzagOrder[index] = pixels[y * img->width + x].r;
-		zigzagOrder[index + 1] = pixels[y * img->width + x].g;
-		zigzagOrder[index + 2] = pixels[y * img->width + x].b;
-        // Move to the next position in zigzag order
-         if (up) {
-            if (x == 0 && y < img->width - 1) {
-                y++;
-                up = false;
-            } else if (y == img->width - 1) {
-                x++;
-                up = false;
-            } else {
-                x--;
-                y++;
-            }
-        } else {
-            if (y == 0 && x < img->height - 1) {
-                x++;
-                up = true;
-            } else if (x == img->height  - 1) {
-                y++;
-                up = true;
-            } else {
-                x++;
-                y--;
-            }
-        }
-
-        index += 3;
-	}
-// Print the last 30 elements of the zigzag order
-int numElements = img->width * img->height * 3;
-for (int i = 0; i < 40; i++) {
-    printf("%f ", zigzagOrder[i]);
-}
-printf("\n");
- }
-
+ 
 // Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
 void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
     const int n = img->height;
@@ -421,43 +366,46 @@ void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
 	}
 }
 
-// // Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
-// void diagonalZigZag(ppm_d_t* img, uint8_t* zigzagOrder) {
-//     int numRows = img->height;
-//     int numCols = img->width;
-//     rgb_pixel_d_t* pixels = img->data; // Pointer to image data (pixels have the structure of rgbrgbrgrb)
-//     int index = 0; // Index for zigzagOrder
+// Seperate the zigzag order into 3 seperate arrays for each channel
+void seperateChannels(ppm_d_t* img,float* zigzagOrder, float* y, float* cb, float* cr){
 
-//     for (int sum = 0; sum < numRows + numCols - 1; sum++) {
-//         if (sum % 2 == 0) {
-//             // Even diagonal (bottom to top)
-//             int row = std::min(sum, numRows - 1);
-//             int col = sum - row;
+	int yIndex = 0;
+    int cbIndex = 0;
+    int crIndex = 0;
 
-//             for (; row >= 0 && col < numCols; row--, col++) {
-//                 // Store the pixel values in the zigzagOrder array
-//                 zigzagOrder[index] = pixels[col * numCols + row].r;
-//                 zigzagOrder[index + 1] = pixels[col * numCols + row].g;
-//                 zigzagOrder[index + 2] = pixels[col * numCols + row].b;
-//                 index += 3; // Move to the next position in zigzagOrder
-//             }
-//         } else {
-//             // Odd diagonal (top to bottom)
-//             int col = std::min(sum, numCols - 1);
-//             int row = sum - col;
+    for (int i =  0; i < img->width * img->height * 3; i += 3) {
+        y[yIndex] = zigzagOrder[i];
+        cb[cbIndex] = zigzagOrder[i + 1];
+        cr[crIndex] = zigzagOrder[i + 2];
 
-//             for (; col >= 0 && row < numRows; col--, row++) {
-//                 // Store the pixel values in the zigzagOrder array
-//                 zigzagOrder[index] = pixels[col * numCols + row].r;
-//                 zigzagOrder[index + 1] = pixels[col * numCols + row].g;
-//                 zigzagOrder[index + 2] = pixels[col * numCols + row].b;
-//                 index += 3; // Move to the next position in zigzagOrder
-//             }
-//         }
-//     }
-// 	//Print the last 30 elements of the zigzag order
-// 	int numElements = img->width * img->height * 3;
-// 	for (int i = 0; i < 40; i++) {
-// 		printf("%d ", zigzagOrder[i]);
-// }
-// }
+        yIndex++;
+       	cbIndex++;
+        crIndex++;
+    }
+}
+// RLE implementation
+void RLE(float* channel, float* RLEArray, int channelSize) {
+    int count = 1;
+    int index = 0;
+
+    for (int i = 0; i < channelSize - 1; i++) {
+        if (channel[i] == channel[i + 1]) {
+            count++;
+        } else {
+            RLEArray[index] = count;
+            RLEArray[index + 1] = static_cast<int>(channel[i]);
+            index += 2;
+            count = 1;
+        }
+    }
+
+    // Handle the last run
+    RLEArray[index] = count;
+    RLEArray[index + 1] = static_cast<int>(channel[channelSize - 1]);
+    // index += 2; // This will be the RLEArraySize
+}
+
+
+
+
+
