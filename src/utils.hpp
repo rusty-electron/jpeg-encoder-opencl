@@ -91,6 +91,13 @@ void performDCTBlock(ppm_d_t *, size_t, size_t);
 
 void performQuantization(ppm_d_t *, const unsigned int[][8], const unsigned int[][8]);
 
-void previewImage(ppm_t *, size_t, size_t, size_t, size_t);
-void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t);
+void previewImage(ppm_t *, size_t, size_t, size_t, size_t, std::string = "");
+void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
+void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
+void printMsg(std::string);
+void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
+
+void copyOntoLargerVectorWithPadding(std::vector <cl_uint>&, std::vector <cl_uint>&, const unsigned int, const unsigned int, const unsigned int, const unsigned int);
+void switchVectorChannelOrdering(std::vector <cl_uint>&, std::vector <cl_uint>&, const unsigned int, const unsigned int);
+void writeVectorToFile(const char *, const unsigned int, const unsigned int, std::vector <cl_uint>&);

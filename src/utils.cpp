@@ -1,5 +1,9 @@
 #include <iomanip>
 #include <cmath>
+#include <vector>
+
+#include <OpenCL/cl-patched.hpp>
+
 #include "utils.hpp"
 
 int readPPMImage(const char * file_path, size_t *width, size_t *height, rgb_pixel_t **imgptr) {
@@ -101,8 +105,8 @@ void performCDS(ppm_t *img) {
 			rgb_pixel_t *pixel3 = getPixelPtr(img, x, y + 1);
 			rgb_pixel_t *pixel4 = getPixelPtr(img, x + 1, y + 1);
 
-			uint8_t avgCb = (pixel1->g + pixel2->g + pixel3->g + pixel4->g) / 4;
-			uint8_t avgCr = (pixel1->b + pixel2->b + pixel3->b + pixel4->b) / 4;
+			uint8_t avgCb = (pixel1->g + pixel2->g + pixel3->g + pixel4->g) / 4.0;
+			uint8_t avgCr = (pixel1->b + pixel2->b + pixel3->b + pixel4->b) / 4.0;
 
 			pixel1->g = avgCb;
 			pixel2->g = avgCb;
@@ -270,7 +274,10 @@ void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
 
 // preview the image pixels
 
-void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8) {
+void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
+	// print message if provided
+	printMsg(msg);
+
 	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
 	for (size_t y = startY; y < startY + lengthY; ++y) {
 		for (size_t x = startX; x < startX + lengthX; ++x) {
@@ -282,7 +289,10 @@ void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengt
 	}
 }
 
-void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8) {
+void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
+	// print message if provided
+	printMsg(msg);
+
 	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
 	for (size_t y = startY; y < startY + lengthY; ++y) {
 		for (size_t x = startX; x < startX + lengthX; ++x) {
@@ -295,6 +305,33 @@ void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t le
 	}
 }
 
+void printMsg(std::string msg) {
+	if (msg != "") {
+		std::cout << "## " << msg << " ##" << std::endl;
+	}
+}
+
+void previewImageLinear(std::vector <cl_uint>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
+	// print message if provided
+	printMsg(msg);
+
+	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
+	size_t idx;
+	uint8_t val1, val2, val3;
+	for (size_t y = startY; y < startY + lengthY; ++y) {
+		for (size_t x = startX; x < startX + lengthX; ++x) {
+			idx = y * width + x;
+			val1 = v[idx];
+			val2 = v[idx + width * height];
+			val3 = v[idx + width * height * 2];
+			// provide three spaces for each pixel
+			std::cout << "(" << std::setw(3) << (int)val1 << ", " << std::setw(3) << (int)val2 << ", " << std::setw(3) << (int)val3 << ")   ";
+		}
+		std::cout << std::endl;
+	}
+}
+
+// TODO: if the simpler (2-loop) GPU implementation works, modify this function to use only two loops instead of four
 void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
 	for (size_t y = 0; y < img->height; y += 8) {
 		for (size_t x = 0; x < img->width; x += 8) {
@@ -309,3 +346,73 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 		}
 	}
 }
+
+void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
+	for (size_t idx = 0; idx < img->width * img->height; ++idx) {
+		v[idx] = img->data[idx].r;
+		v[idx + img->width * img->height] = img->data[idx].g;
+		v[idx + img->width * img->height * 2] = img->data[idx].b;
+	}
+}
+
+void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int oldWidth, const unsigned int oldHeight, const unsigned int newWidth, const unsigned int newHeight) {
+	// copy the original image
+	for (size_t y = 0; y < oldHeight; ++y) {
+		for (size_t x = 0; x < oldWidth; ++x) {
+			vOutput[y * newWidth + x] = vInput[y * oldWidth + x];
+			vOutput[y * newWidth + x + newWidth * newHeight] = vInput[y * oldWidth + x + oldWidth * oldHeight];
+			vOutput[y * newWidth + x + newWidth * newHeight * 2] = vInput[y * oldWidth + x + oldWidth * oldHeight * 2];
+		}
+	}
+
+	// add padding to the right
+	for (size_t y = 0; y < oldHeight; ++y) {
+		for (size_t x = oldWidth; x < newWidth; ++x) {
+			int diff = x - oldWidth + 1;
+			vOutput[y * newWidth + x] = vInput[y * oldWidth + oldWidth - diff];
+			vOutput[y * newWidth + x + newWidth * newHeight] = vInput[y * oldWidth + oldWidth - diff + oldWidth * oldHeight];
+			vOutput[y * newWidth + x + newWidth * newHeight * 2] = vInput[y * oldWidth + oldWidth - diff + oldWidth * oldHeight * 2];
+		}
+	}
+
+	// add padding to the bottom
+	for (size_t y = oldHeight; y < newHeight; ++y) {
+		for (size_t x = 0; x < newWidth; ++x) {
+			int diff = y - oldHeight + 1;
+			vOutput[y * newWidth + x] = vInput[(oldHeight - diff) * oldWidth + x];
+			vOutput[y * newWidth + x + newWidth * newHeight] = vInput[(oldHeight - diff) * oldWidth + x + oldWidth * oldHeight];
+			vOutput[y * newWidth + x + newWidth * newHeight * 2] = vInput[(oldHeight - diff) * oldWidth + x + oldWidth * oldHeight * 2];
+		}
+	}
+}
+
+void switchVectorChannelOrdering(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int width, const unsigned int height) {
+	for (size_t y = 0; y < height * width; ++y) {
+		// place first channel in every third position starting with 0
+		vOutput[y * 3] = vInput[y];
+		// place second channel in every third position starting with 1
+		vOutput[y * 3 + 1] = vInput[y + width * height];
+		// place third channel in every third position starting with 2
+		vOutput[y * 3 + 2] = vInput[y + width * height * 2];
+	}
+}
+
+void writeVectorToFile(const char * file_path, const unsigned int width, const unsigned int height, std::vector <cl_uint>& imgVector) {
+	// create file object 
+	FILE *fp = fopen(file_path, "wb");
+
+	if (fp) {
+		fprintf(fp, "P6\n");
+		fprintf(fp, "%d %d\n", width, height);
+		fprintf(fp, "255\n");
+		// loop through the vector and write the values to the file
+		for (size_t i = 0; i < 3 * width * height; ++i) {
+			uint8_t val = imgVector[i];
+			fwrite(&val, sizeof(uint8_t), 1, fp);
+		}
+		fclose(fp);
+	} else {
+		std::cout << "Error opening the file" << std::endl;
+	}
+}
+
