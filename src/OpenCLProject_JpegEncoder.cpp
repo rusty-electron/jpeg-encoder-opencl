@@ -38,39 +38,39 @@ void writePPM(FILE *file, uint8_t *header, double *image, int size){
 	fclose(file);
 }
 
-void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
-	const double sqrt2 = std::sqrt(2.0);
-    const double PI = 3.14159265359;
-	double *dctImg;
+// void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
+// 	const double sqrt2 = std::sqrt(2.0);
+//     const double PI = 3.14159265359;
+// 	double *dctImg;
 
-    dctImg = new double [width * height];
+//     dctImg = new double [width * height];
 
-    for (size_t u = 0; u < height; ++u) {
-        for (size_t v = 0; v < width; ++v) {
-            double sum = 0.0;
+//     for (size_t u = 0; u < height; ++u) {
+//         for (size_t v = 0; v < width; ++v) {
+//             double sum = 0.0;
 
-            for (size_t x = 0; x < height; ++x) {
-                for (size_t y = 0; y < width; ++y) {
-                    double cu = (x == 0) ? 1.0 / sqrt2 : 1.0;
-                    double cv = (y == 0) ? 1.0 / sqrt2 : 1.0;
+//             for (size_t x = 0; x < height; ++x) {
+//                 for (size_t y = 0; y < width; ++y) {
+//                     double cu = (x == 0) ? 1.0 / sqrt2 : 1.0;
+//                     double cv = (y == 0) ? 1.0 / sqrt2 : 1.0;
 
-                    size_t index = (x * width + y) * 3; // Start of YCbCr pixel
-                    double yVal = static_cast<double>(image[index]); // Y channel
-                    double cbVal = static_cast<double>(image[index + 1]); // Cb channel
-                    double crVal = static_cast<double>(image[index + 2]); // Cr channel
+//                     size_t index = (x * width + y) * 3; // Start of YCbCr pixel
+//                     double yVal = static_cast<double>(image[index]); // Y channel
+//                     double cbVal = static_cast<double>(image[index + 1]); // Cb channel
+//                     double crVal = static_cast<double>(image[index + 2]); // Cr channel
 
-                    sum += cu * cv * yVal * std::cos((2.0 * u + 1.0) * x * PI / (2.0 * height)) *
-                           std::cos((2.0 * v + 1.0) * y * PI / (2.0 * width));
-                }
-            }
+//                     sum += cu * cv * yVal * std::cos((2.0 * u + 1.0) * x * PI / (2.0 * height)) *
+//                            std::cos((2.0 * v + 1.0) * y * PI / (2.0 * width));
+//                 }
+//             }
 
-            dctImg[u * width + v] = sum;
-        }
-	}
-	FILE *write;
-	write = fopen("../data/dct.ppm","wb");
-	writePPM(write, header, dctImg, (int)height*width*3);
-}
+//             dctImg[u * width + v] = sum;
+//         }
+// 	}
+// 	FILE *write;
+// 	write = fopen("../data/dct.ppm","wb");
+// 	writePPM(write, header, dctImg, (int)height*width*3);
+// }
 
 int JpegEncoderHost(ppm_t imgCPU) {
 	// write the image to a file
