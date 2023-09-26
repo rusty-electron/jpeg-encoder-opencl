@@ -79,8 +79,6 @@ int JpegEncoderHost(ppm_t imgCPU) {
         return 1;
     }
 
-	previewImage(&imgCPU, 0, 0, 8, 8, "Before Everything():");
-
     // create a copy of a structure
     ppm_t imgCPU2;
     // copy the image
@@ -98,17 +96,12 @@ int JpegEncoderHost(ppm_t imgCPU) {
         return 1;
     }
 
-    // test getter and setter functions
-	std::cout << "Testing getter and setter functions:" << std::endl;
-    setPixelR(&imgCPU2, 0, 0, 1);
-    setPixelG(&imgCPU2, 0, 0, 2);
-    setPixelB(&imgCPU2, 0, 0, 3);
-    std::cout << "R: " << (int)getPixelR(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "G: " << (int)getPixelG(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "B: " << (int)getPixelB(&imgCPU2, 0, 0) << std::endl;
-
     // perform CSC
+	Core::TimeSpan startTime = Core::getCurrentTime();
     performCSC(&imgCPU);
+	Core::TimeSpan endTime = Core::getCurrentTime();
+	Core::TimeSpan CSCTimeCPU = endTime - startTime;
+	std::cout << "CSC Time CPU: " << CSCTimeCPU.toString() << std::endl;
 
 	// write the image to a file
     if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
@@ -117,9 +110,11 @@ int JpegEncoderHost(ppm_t imgCPU) {
     }
 
     // perform CDS
+	startTime = Core::getCurrentTime();
     performCDS(&imgCPU);
-
-	previewImage(&imgCPU, 248, 0, 8, 8, "After performCDS():");
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan CDSTimeCPU = endTime - startTime;
+	std::cout << "CDS Time CPU: " << CDSTimeCPU.toString() << std::endl;
 
     // write the image to a file
     if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
@@ -136,9 +131,11 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	imgCPU3.width = newWidth;
 	imgCPU3.height = newHeight;
 	imgCPU3.data = (rgb_pixel_t *)malloc(newWidth * newHeight * sizeof(rgb_pixel_t));
-	copyToLargerImage(&imgCPU, &imgCPU3);
 
-	previewImage(&imgCPU3, 248, 0, 8, 8, "After copyToLargerImage():");
+	startTime = Core::getCurrentTime();
+	copyToLargerImage(&imgCPU, &imgCPU3);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan copyTimeCPU = endTime - startTime;
 
 	// write the image to a file
 	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
@@ -146,10 +143,9 @@ int JpegEncoderHost(ppm_t imgCPU) {
 		return 1;
 	}
 
+	// TODO: add padding to the image only if the image dims are not divisible by 8
 	// add padding to the image
 	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
-
-	previewImage(&imgCPU3, 248, 0, 8, 8, "After addReversedPadding():");
 
 	// write the image to a file
 	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
@@ -162,19 +158,28 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	imgCPU_d.width = imgCPU3.width;
 	imgCPU_d.height = imgCPU3.height;
 	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
+	startTime = Core::getCurrentTime();
 	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan copyTimeCPU2 = endTime - startTime;
+	Core::TimeSpan TotalCopyTimeCPU = copyTimeCPU + copyTimeCPU2;
+	std::cout << "Total Copy Time CPU: " << TotalCopyTimeCPU.toString() << std::endl;
 
+	startTime = Core::getCurrentTime();
 	substractfromAll(&imgCPU_d, 128.0);
-
-	previewImageD(&imgCPU_d, 248, 0, 8, 8, "After substractfromAll():");
-	
 	performDCT(&imgCPU_d);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan DCTTimeCPU = endTime - startTime;
+	std::cout << "DCT Time CPU: " << DCTTimeCPU.toString() << std::endl;
 
-	previewImageD(&imgCPU_d, 248, 0, 8, 8, "After performDCT():");
-
+	startTime = Core::getCurrentTime();
 	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan QuantTimeCPU = endTime - startTime;
+	std::cout << "Quantization Time CPU: " << QuantTimeCPU.toString() << std::endl;
 
-	previewImageD(&imgCPU_d, 248, 0, 8, 8, "After performQuantization():");
+	// print total time
+	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU).toString() << std::endl;
 	return 0;
 }
 
@@ -258,6 +263,7 @@ int main(int argc, char** argv) {
 
 	previewImageLinear(h_input, imgCPU.width, imgCPU.height, 0, 0, 8, 8, "Before colorConversionKernel():");
 
+	cl::Event colorConversionEvent;
 	// create a kernel object for color conversion
 	cl::Kernel colorConversionKernel(program, "colorConversionKernel");
 
@@ -269,9 +275,16 @@ int main(int argc, char** argv) {
 	colorConversionKernel.setArg<cl_uint>(3, (cl_uint)imgCPU.height);
 
 	// Launch kernel on the compute device
-	queue.enqueueNDRangeKernel(colorConversionKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	queue.enqueueNDRangeKernel(colorConversionKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &colorConversionEvent);
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_output, true, 0, size, h_outputGpu.data(), NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// Print performance data
+	Core::TimeSpan colorConversionTimeGPU = OpenCL::getElapsedTime(colorConversionEvent);
+	std::cout << "Color conversion time (GPU): " << colorConversionTimeGPU.toString() << std::endl;
 
 	previewImageLinear(h_outputGpu, imgCPU.width, imgCPU.height, 248, 0, 8, 8, "After colorConversionKernel():");
 
@@ -297,6 +310,7 @@ int main(int argc, char** argv) {
 
 	queue.enqueueWriteBuffer(d_output, true, 0, size, h_largeoutput.data(), NULL, NULL);
 
+	cl::Event chromaSubsamplingEvent;
 	// create a kernel object for chroma subsampling
 	cl::Kernel chromaSubsamplingKernel(program, "chromaSubsamplingKernel");
 	chromaSubsamplingKernel.setArg<cl::Buffer>(0, d_input);
@@ -305,10 +319,17 @@ int main(int argc, char** argv) {
 	chromaSubsamplingKernel.setArg<cl_uint>(3, (cl_uint)newHeight);
 
 	// Launch kernel on the compute device
-	queue.enqueueNDRangeKernel(chromaSubsamplingKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	queue.enqueueNDRangeKernel(chromaSubsamplingKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &chromaSubsamplingEvent);
 
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_output, true, 0, size, h_largeoutput.data(), NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// Print performance data
+	Core::TimeSpan chromaSubsamplingTimeGPU = OpenCL::getElapsedTime(chromaSubsamplingEvent);
+	std::cout << "Chroma subsampling time (GPU): " << chromaSubsamplingTimeGPU.toString() << std::endl;
 
 	// testing 
 	std::vector<cl_uint> h_img_test(newWidth * newHeight * 3);
