@@ -9,6 +9,7 @@ data/*
 # report folder
 report/docs/img/*
 report/docs/report_files/*
+report/docs/index.html
 
 # Prerequisites
 *.d
