@@ -169,6 +169,7 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	substractfromAll(&imgCPU_d, 128.0);
 
 	performDCT(&imgCPU_d);
+
 	endTime = Core::getCurrentTime();
 	Core::TimeSpan DCTTimeCPU = endTime - startTime;
 	std::cout << "DCT Time CPU: " << DCTTimeCPU.toString() << std::endl;

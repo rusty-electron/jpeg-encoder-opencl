@@ -6,6 +6,10 @@ cmake-build-debug
 data/*
 .cache/
 
+# report folder
+report/docs/img/*
+report/docs/report_files/*
+
 # Prerequisites
 *.d
 
