@@ -85,6 +85,13 @@ void removeRedChannel(ppm_t *img) {
 }
 
 void performCSC(ppm_t *img) {
+	/* CSC = Color Space Conversion
+	 * Y = 0.299 * R + 0.587 * G + 0.114 * B
+	 * Cb = -0.168736 * R - 0.331264 * G + 0.5 * B + 128
+	 * Cr = 0.5 * R - 0.418688 * G - 0.081312 * B + 128 
+	 * Input: RGB struct
+	 * Output: Convert RGB to YCbCr color space
+	*/ 
 	for (size_t i = 0; i < img->width * img->height; ++i) {
 		rgb_pixel_t *pixel = &img->data[i];
 		uint8_t r = pixel->r;
@@ -98,6 +105,12 @@ void performCSC(ppm_t *img) {
 }
 
 void performCDS(ppm_t *img) {
+	/* CDS = Color Downsampling
+	 * Cb = (Cb1 + Cb2 + Cb3 + Cb4) / 4
+	 * Cr = (Cr1 + Cr2 + Cr3 + Cr4) / 4
+	 * Input: YCbCr struct
+	 * Output: Downsampling Cb and Cr channels (used 2x2 average)
+	*/
 	for (size_t y = 0; y < img->height; y += 2) {
 		for (size_t x = 0; x < img->width; x += 2) {
 			rgb_pixel_t *pixel1 = getPixelPtr(img, x, y);
@@ -130,7 +143,7 @@ rgb_pixel_t* getPixelPtr(ppm_t *img, size_t x, size_t y) {
 }
 
 uint8_t getPixelR(ppm_t *img, size_t x, size_t y) {
-	return img->data[y * img->width + x].r;
+	return img->data[y * img->width + x].r; // img->height
 }
 
 uint8_t getPixelG(ppm_t *img, size_t x, size_t y) {
@@ -347,6 +360,77 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
+// Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
+void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
+    const int n = img->height;
+    const int m = img->width;
+    
+    int index = 0; // Index for zigzagOrder
+	rgb_pixel_d_t *pixels = img->data;
+
+    for (int diag = 0; diag < n + m - 1; ++diag) {
+        const auto i_min = std::max(0, diag - m + 1);
+        const auto i_max = i_min + std::min(diag, n - 1);
+
+        for (auto i = i_min; i <= i_max; ++i) {
+            const auto row = diag % 2 ? i : (diag - i);
+            const auto col = diag % 2 ? (diag - i) : i;
+			if (index < img->width * img->height * 3) {
+				// (row, col) is the current element
+				zigzagOrder[index] = pixels[col * img->width + row].r;
+				zigzagOrder[index + 1] = pixels[col * img->width + row].g;
+				zigzagOrder[index + 2] = pixels[col * img->width + row].b;
+
+				index += 3;
+			}
+        }
+    }
+	//Print the last 30 elements of the zigzag order
+	int numElements = img->width * img->height * 3;
+	for (int i = 0; i < 40; i++) {
+		printf("%f ", zigzagOrder[i]);
+	}
+}
+
+// Seperate the zigzag order into 3 seperate arrays for each channel
+void seperateChannels(ppm_d_t* img,float* zigzagOrder, float* y, float* cb, float* cr){
+
+	int yIndex = 0;
+    int cbIndex = 0;
+    int crIndex = 0;
+
+    for (int i =  0; i < img->width * img->height * 3; i += 3) {
+        y[yIndex] = zigzagOrder[i];
+        cb[cbIndex] = zigzagOrder[i + 1];
+        cr[crIndex] = zigzagOrder[i + 2];
+
+        yIndex++;
+       	cbIndex++;
+        crIndex++;
+    }
+}
+// RLE implementation
+void RLE(float* channel, float* RLEArray, int channelSize) {
+    int count = 1;
+    int index = 0;
+
+    for (int i = 0; i < channelSize - 1; i++) {
+        if (channel[i] == channel[i + 1]) {
+            count++;
+        } else {
+            RLEArray[index] = count;
+            RLEArray[index + 1] = static_cast<int>(channel[i]);
+            index += 2;
+            count = 1;
+        }
+    }
+
+    // Handle the last run
+    RLEArray[index] = count;
+    RLEArray[index + 1] = static_cast<int>(channel[channelSize - 1]);
+    // index += 2; // This will be the RLEArraySize
+}
+
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
 	for (size_t idx = 0; idx < img->width * img->height; ++idx) {
 		v[idx] = img->data[idx].r;
@@ -415,4 +499,3 @@ void writeVectorToFile(const char * file_path, const unsigned int width, const u
 		std::cout << "Error opening the file" << std::endl;
 	}
 }
-

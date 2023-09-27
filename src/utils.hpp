@@ -95,6 +95,11 @@ void previewImage(ppm_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
+void diagonalZigZag(ppm_d_t * ,float *);
+
+void seperateChannels(ppm_d_t * ,float * , float * , float * , float * );
+void RLE(float *, float * , int );
+
 void printMsg(std::string);
 void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
 

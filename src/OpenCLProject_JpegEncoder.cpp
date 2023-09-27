@@ -167,6 +167,7 @@ int JpegEncoderHost(ppm_t imgCPU) {
 
 	startTime = Core::getCurrentTime();
 	substractfromAll(&imgCPU_d, 128.0);
+
 	performDCT(&imgCPU_d);
 	endTime = Core::getCurrentTime();
 	Core::TimeSpan DCTTimeCPU = endTime - startTime;
@@ -178,8 +179,45 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	Core::TimeSpan QuantTimeCPU = endTime - startTime;
 	std::cout << "Quantization Time CPU: " << QuantTimeCPU.toString() << std::endl;
 
+	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+
+	// initialize an linear array with the size of the image
+	float *image = new float[imgCPU_d.width * imgCPU_d.height * 3];
+	
+	diagonalZigZag(&imgCPU_d, image);
+
+	// Seperate the channels
+	float *y = new float[imgCPU_d.width * imgCPU_d.height];
+	float *cb = new float[imgCPU_d.width * imgCPU_d.height];
+	float *cr = new float[imgCPU_d.width * imgCPU_d.height];
+
+	seperateChannels(&imgCPU_d, image, y, cb, cr);
+
+	// RLE encoding
+	float *y_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	float *cb_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	float *cr_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
+	int imgSize = imgCPU_d.width * imgCPU_d.height;
+
+	RLE(y, y_rle,imgSize);
+	RLE(cb, cb_rle, imgSize);
+	RLE(cr, cr_rle, imgSize);
+
+	//Print first 20 values of y and y_rle
+	std::cout << "First 20 values of y:" << std::endl;
+	for (int i = 0; i < 20; i++) {
+		std::cout << cb[i] << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "First 20 values of y_rle:" << std::endl;
+	for (int i = 0; i < 20; i++) {
+		std::cout << cb_rle[i] << " ";
+	}
+	std::cout << std::endl;
+
 	// print total time
 	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU).toString() << std::endl;
+
 	return 0;
 }
 
@@ -395,6 +433,12 @@ int main(int argc, char** argv) {
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
 
+
+	//previewImage(&imgCPU3, 248, 0, 8, 8);
+	// uint8_t *imgPtr = &image;
+	// int size;
+	// size = easyPPMRead(imgPtr);
+	// csc(imgPtr, size);
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction
