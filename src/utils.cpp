@@ -411,24 +411,27 @@ void seperateChannels(ppm_d_t* img,float* zigzagOrder, float* y, float* cb, floa
 }
 // RLE implementation
 void RLE(float* channel, float* RLEArray, int channelSize) {
-    int count = 1;
-    int index = 0;
+	int index = 0;
+	int count = 0;
+	// The first element is the DC coefficient and not used in the RLE
 
-    for (int i = 0; i < channelSize - 1; i++) {
-        if (channel[i] == channel[i + 1]) {
-            count++;
-        } else {
-            RLEArray[index] = count;
-            RLEArray[index + 1] = static_cast<int>(channel[i]);
-            index += 2;
-            count = 1;
-        }
-    }
-
-    // Handle the last run
-    RLEArray[index] = count;
-    RLEArray[index + 1] = static_cast<int>(channel[channelSize - 1]);
-    // index += 2; // This will be the RLEArraySize
+	// RLE for the AC components
+	for (int i = 1; i < channelSize; i++) {
+		// count the number of zeros before each element
+		if (channel[i] == 0) {
+			count++;
+		}
+		else {
+			// store the number of zeros before the element
+			RLEArray[index] = count;
+			index++;
+			// store the element
+			RLEArray[index] = channel[i];
+			index++;
+			// reset the count
+			count = 0;
+		}
+	}
 }
 
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
@@ -448,6 +451,7 @@ void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector 
 			vOutput[y * newWidth + x + newWidth * newHeight * 2] = vInput[y * oldWidth + x + oldWidth * oldHeight * 2];
 		}
 	}
+		
 
 	// add padding to the right
 	for (size_t y = 0; y < oldHeight; ++y) {
