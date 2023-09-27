@@ -360,6 +360,30 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
+void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
+	unsigned int rowsPerChannel = img->height * img->width / 64;
+	unsigned int numOfMCUsX = img->width / 8;
+	for (size_t y = 0; y < img->height; y += 8) {
+		for (size_t x = 0; x < img->width; x += 8) {
+			for (size_t v = 0; v < 8; ++v) {
+				for (size_t u = 0; u < 8; ++u) {
+					rgb_pixel_d_t *pixel = &img->data[(y + v) * img->width + (x + u)];
+					
+					linear_arr[y / 8 * numOfMCUsX + x / 8][v * 8 + u] = pixel->r;
+					linear_arr[y / 8 * numOfMCUsX + x / 8 + rowsPerChannel][v * 8 + u] = pixel->g;
+					linear_arr[y / 8 * numOfMCUsX + x / 8 + rowsPerChannel * 2][v * 8 + u] = pixel->b;
+				}
+			}
+		}
+	}
+}
+
+void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
+	for (size_t i = 0; i < numRows; ++i) {
+		performZigZagBlock(linear_arr[i], zigzag_arr[i]);
+	}
+}
+
 // Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
 void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
     const int n = img->height;

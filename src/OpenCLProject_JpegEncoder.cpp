@@ -72,7 +72,7 @@ void writePPM(FILE *file, uint8_t *header, double *image, int size){
 // 	writePPM(write, header, dctImg, (int)height*width*3);
 // }
 
-int JpegEncoderHost(ppm_t imgCPU) {
+int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// write the image to a file
     if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
@@ -158,9 +158,11 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	imgCPU_d.width = imgCPU3.width;
 	imgCPU_d.height = imgCPU3.height;
 	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
+
 	startTime = Core::getCurrentTime();
 	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
 	endTime = Core::getCurrentTime();
+
 	Core::TimeSpan copyTimeCPU2 = endTime - startTime;
 	Core::TimeSpan TotalCopyTimeCPU = copyTimeCPU + copyTimeCPU2;
 	std::cout << "Total Copy Time CPU: " << TotalCopyTimeCPU.toString() << std::endl;
@@ -169,23 +171,34 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	substractfromAll(&imgCPU_d, 128.0);
 
 	performDCT(&imgCPU_d);
-
 	endTime = Core::getCurrentTime();
+
 	Core::TimeSpan DCTTimeCPU = endTime - startTime;
 	std::cout << "DCT Time CPU: " << DCTTimeCPU.toString() << std::endl;
 
 	startTime = Core::getCurrentTime();
 	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
 	endTime = Core::getCurrentTime();
+
 	Core::TimeSpan QuantTimeCPU = endTime - startTime;
 	std::cout << "Quantization Time CPU: " << QuantTimeCPU.toString() << std::endl;
 
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
+	previewImageD(&imgCPU_d, 0, 0, 8, 8);
 
 	// initialize an linear array with the size of the image
 	float *image = new float[imgCPU_d.width * imgCPU_d.height * 3];
+
+	// number of rows of 2D array = (total image pixels / 64) * 3
+	// number of columns of 2D array = 64
+	unsigned int rows = (imgCPU_d.width * imgCPU_d.height) / 64 * 3;
+	int linear_arr[rows][64];
 	
-	diagonalZigZag(&imgCPU_d, image);
+	everyMCUisnow2DArray(&imgCPU_d, linear_arr);
+	// print the first row of the 2D array
+	std::cout << "First row of the 2D array:" << std::endl;
+	for (int i = 0; i < 64; i++) {
+		std::cout << linear_arr[1024*2][i] << " ";
+	}
 
 	// Seperate the channels
 	float *y = new float[imgCPU_d.width * imgCPU_d.height];
@@ -215,6 +228,15 @@ int JpegEncoderHost(ppm_t imgCPU) {
 		std::cout << cb_rle[i] << " ";
 	}
 	std::cout << std::endl;
+
+	// copy telemetry data to the structure
+	if (cpu_telemetry != NULL) {
+		cpu_telemetry->CSCTime = static_cast<double>(CSCTimeCPU.getMicroseconds());
+		cpu_telemetry->CDSTime = static_cast<double>(CDSTimeCPU.getMicroseconds());
+		cpu_telemetry->DCTTime = static_cast<double>(DCTTimeCPU.getMicroseconds());
+		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
+		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
+	}
 
 	// print total time
 	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU).toString() << std::endl;
@@ -294,8 +316,10 @@ int main(int argc, char** argv) {
 
 	copyImageToVector(&imgCPU, h_input);
 
+	// create an instance of cpu_telemetry
+	CPUTelemetry cpu_telemetry;
 	// perform the JPEG encoding on the CPU
-	JpegEncoderHost(imgCPU);
+	JpegEncoderHost(imgCPU, &cpu_telemetry);
 
 	// Copy input data to device
 	queue.enqueueWriteBuffer(d_input, true, 0, size, h_input.data(), NULL, NULL);
@@ -434,6 +458,10 @@ int main(int argc, char** argv) {
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
 
+	// Calculate speedups
+	std::cout << "Speedups:" << std::endl;
+	std::cout << "Color conversion: " << (cpu_telemetry.CSCTime / static_cast<double>(colorConversionTimeGPU.getMicroseconds())) << std::endl;
+	std::cout << "Chroma subsampling: " << (cpu_telemetry.CDSTime / static_cast<double>(chromaSubsamplingTimeGPU.getMicroseconds())) << std::endl;
 
 	//previewImage(&imgCPU3, 248, 0, 8, 8);
 	// uint8_t *imgPtr = &image;
