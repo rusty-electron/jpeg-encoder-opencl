@@ -38,40 +38,39 @@ void writePPM(FILE *file, uint8_t *header, double *image, int size){
 	fclose(file);
 }
 
+// void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
+// 	const double sqrt2 = std::sqrt(2.0);
+//     const double PI = 3.14159265359;
+// 	double *dctImg;
 
-void dct(uint8_t* image, size_t width, size_t height, uint8_t *header){
-	const double sqrt2 = std::sqrt(2.0);
-    const double PI = 3.14159265359;
-	double *dctImg;
+//     dctImg = new double [width * height];
 
-    dctImg = new double [width * height];
+//     for (size_t u = 0; u < height; ++u) {
+//         for (size_t v = 0; v < width; ++v) {
+//             double sum = 0.0;
 
-    for (size_t u = 0; u < height; ++u) {
-        for (size_t v = 0; v < width; ++v) {
-            double sum = 0.0;
+//             for (size_t x = 0; x < height; ++x) {
+//                 for (size_t y = 0; y < width; ++y) {
+//                     double cu = (x == 0) ? 1.0 / sqrt2 : 1.0;
+//                     double cv = (y == 0) ? 1.0 / sqrt2 : 1.0;
 
-            for (size_t x = 0; x < height; ++x) {
-                for (size_t y = 0; y < width; ++y) {
-                    double cu = (x == 0) ? 1.0 / sqrt2 : 1.0;
-                    double cv = (y == 0) ? 1.0 / sqrt2 : 1.0;
+//                     size_t index = (x * width + y) * 3; // Start of YCbCr pixel
+//                     double yVal = static_cast<double>(image[index]); // Y channel
+//                     double cbVal = static_cast<double>(image[index + 1]); // Cb channel
+//                     double crVal = static_cast<double>(image[index + 2]); // Cr channel
 
-                    size_t index = (x * width + y) * 3; // Start of YCbCr pixel
-                    double yVal = static_cast<double>(image[index]); // Y channel
-                    double cbVal = static_cast<double>(image[index + 1]); // Cb channel
-                    double crVal = static_cast<double>(image[index + 2]); // Cr channel
+//                     sum += cu * cv * yVal * std::cos((2.0 * u + 1.0) * x * PI / (2.0 * height)) *
+//                            std::cos((2.0 * v + 1.0) * y * PI / (2.0 * width));
+//                 }
+//             }
 
-                    sum += cu * cv * yVal * std::cos((2.0 * u + 1.0) * x * PI / (2.0 * height)) *
-                           std::cos((2.0 * v + 1.0) * y * PI / (2.0 * width));
-                }
-            }
-
-            dctImg[u * width + v] = sum;
-        }
-	}
-	FILE *write;
-	write = fopen("../data/dct.ppm","wb");
-	writePPM(write, header, dctImg, (int)height*width*3);
-}
+//             dctImg[u * width + v] = sum;
+//         }
+// 	}
+// 	FILE *write;
+// 	write = fopen("../data/dct.ppm","wb");
+// 	writePPM(write, header, dctImg, (int)height*width*3);
+// }
 
 int JpegEncoderHost(ppm_t imgCPU) {
 	// write the image to a file
@@ -97,16 +96,12 @@ int JpegEncoderHost(ppm_t imgCPU) {
         return 1;
     }
 
-    // test getter and setter functions
-    setPixelR(&imgCPU2, 0, 0, 1);
-    setPixelG(&imgCPU2, 0, 0, 2);
-    setPixelB(&imgCPU2, 0, 0, 3);
-    std::cout << "R: " << (int)getPixelR(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "G: " << (int)getPixelG(&imgCPU2, 0, 0) << std::endl;
-    std::cout << "B: " << (int)getPixelB(&imgCPU2, 0, 0) << std::endl;
-
     // perform CSC
+	Core::TimeSpan startTime = Core::getCurrentTime();
     performCSC(&imgCPU);
+	Core::TimeSpan endTime = Core::getCurrentTime();
+	Core::TimeSpan CSCTimeCPU = endTime - startTime;
+	std::cout << "CSC Time CPU: " << CSCTimeCPU.toString() << std::endl;
 
 	// write the image to a file
     if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
@@ -115,7 +110,11 @@ int JpegEncoderHost(ppm_t imgCPU) {
     }
 
     // perform CDS
+	startTime = Core::getCurrentTime();
     performCDS(&imgCPU);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan CDSTimeCPU = endTime - startTime;
+	std::cout << "CDS Time CPU: " << CDSTimeCPU.toString() << std::endl;
 
     // write the image to a file
     if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
@@ -132,9 +131,11 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	imgCPU3.width = newWidth;
 	imgCPU3.height = newHeight;
 	imgCPU3.data = (rgb_pixel_t *)malloc(newWidth * newHeight * sizeof(rgb_pixel_t));
-	copyToLargerImage(&imgCPU, &imgCPU3);
 
-	previewImage(&imgCPU3, 248, 0, 8, 8);
+	startTime = Core::getCurrentTime();
+	copyToLargerImage(&imgCPU, &imgCPU3);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan copyTimeCPU = endTime - startTime;
 
 	// write the image to a file
 	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
@@ -142,10 +143,9 @@ int JpegEncoderHost(ppm_t imgCPU) {
 		return 1;
 	}
 
+	// TODO: add padding to the image only if the image dims are not divisible by 8
 	// add padding to the image
 	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
-
-	//previewImage(&imgCPU3, 248, 0, 8, 8);
 
 	// write the image to a file
 	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
@@ -158,17 +158,26 @@ int JpegEncoderHost(ppm_t imgCPU) {
 	imgCPU_d.width = imgCPU3.width;
 	imgCPU_d.height = imgCPU3.height;
 	imgCPU_d.data = (rgb_pixel_d_t *)malloc(imgCPU3.width * imgCPU3.height * sizeof(rgb_pixel_d_t));
+	startTime = Core::getCurrentTime();
 	copyUIntToDoubleImage(&imgCPU3, &imgCPU_d);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan copyTimeCPU2 = endTime - startTime;
+	Core::TimeSpan TotalCopyTimeCPU = copyTimeCPU + copyTimeCPU2;
+	std::cout << "Total Copy Time CPU: " << TotalCopyTimeCPU.toString() << std::endl;
 
+	startTime = Core::getCurrentTime();
 	substractfromAll(&imgCPU_d, 128.0);
 
-	//previewImageD(&imgCPU_d, 248, 0, 8, 8);
-	
 	performDCT(&imgCPU_d);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan DCTTimeCPU = endTime - startTime;
+	std::cout << "DCT Time CPU: " << DCTTimeCPU.toString() << std::endl;
 
-	previewImageD(&imgCPU_d, 248, 0, 8, 8);
-
+	startTime = Core::getCurrentTime();
 	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
+	endTime = Core::getCurrentTime();
+	Core::TimeSpan QuantTimeCPU = endTime - startTime;
+	std::cout << "Quantization Time CPU: " << QuantTimeCPU.toString() << std::endl;
 
 	previewImageD(&imgCPU_d, 248, 0, 8, 8);
 
@@ -205,6 +214,10 @@ int JpegEncoderHost(ppm_t imgCPU) {
 		std::cout << cb_rle[i] << " ";
 	}
 	std::cout << std::endl;
+
+	// print total time
+	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU).toString() << std::endl;
+
 	return 0;
 }
 
@@ -278,19 +291,17 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	copyImageToVector(&imgCPU, h_input);
+
 	// perform the JPEG encoding on the CPU
 	JpegEncoderHost(imgCPU);
-
-	// copy the image onto h_input for GPU processing
-	for (size_t i = 0; i < imgCPU.width * imgCPU.height; ++i) {
-		h_input[i] = imgCPU.data[i].r;
-		h_input[i + imgCPU.width * imgCPU.height] = imgCPU.data[i].g;
-		h_input[i + 2 * imgCPU.width * imgCPU.height] = imgCPU.data[i].b;
-	}
 
 	// Copy input data to device
 	queue.enqueueWriteBuffer(d_input, true, 0, size, h_input.data(), NULL, NULL);
 
+	previewImageLinear(h_input, imgCPU.width, imgCPU.height, 0, 0, 8, 8, "Before colorConversionKernel():");
+
+	cl::Event colorConversionEvent;
 	// create a kernel object for color conversion
 	cl::Kernel colorConversionKernel(program, "colorConversionKernel");
 
@@ -302,31 +313,125 @@ int main(int argc, char** argv) {
 	colorConversionKernel.setArg<cl_uint>(3, (cl_uint)imgCPU.height);
 
 	// Launch kernel on the compute device
-	queue.enqueueNDRangeKernel(colorConversionKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	queue.enqueueNDRangeKernel(colorConversionKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &colorConversionEvent);
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_output, true, 0, size, h_outputGpu.data(), NULL, NULL);
 
-	// print the y, cb, cr values of the first pixel from imgCPU
-	std::cout << "Values of the first pixel from imgCPU:" << std::endl;
-	std::cout << "Y: " << (int)getPixelR(&imgCPU, 0, 0) << std::endl;
-	std::cout << "Cb: " << (int)getPixelG(&imgCPU, 0, 0) << std::endl;
-	std::cout << "Cr: " << (int)getPixelB(&imgCPU, 0, 0) << std::endl;
-	// last pixel 
-	std::cout << "Values of the last pixel from imgCPU:" << std::endl;
-	std::cout << "Y: " << (int)getPixelR(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
-	std::cout << "Cb: " << (int)getPixelG(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
-	std::cout << "Cr: " << (int)getPixelB(&imgCPU, imgCPU.width - 1, imgCPU.height - 1) << std::endl;
+	// Wait for all commands to complete
+	queue.finish();
 
-	// print the y, cb, cr values of the first pixel from d_outputGpu
-	std::cout << "Values of the first pixel from d_outputGpu:" << std::endl;
-	std::cout << "Y: " << (int)h_outputGpu[0] << std::endl;
-	std::cout << "Cb: " << (int)h_outputGpu[imgCPU.width * imgCPU.height] << std::endl;
-	std::cout << "Cr: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height] << std::endl;
-	// last pixel
-	std::cout << "Values of the last pixel from d_outputGpu:" << std::endl;
-	std::cout << "Y: " << (int)h_outputGpu[imgCPU.width * imgCPU.height - 1] << std::endl;
-	std::cout << "Cb: " << (int)h_outputGpu[2 * imgCPU.width * imgCPU.height - 1] << std::endl;
-	std::cout << "Cr: " << (int)h_outputGpu[3 * imgCPU.width * imgCPU.height - 1] << std::endl;
+	// Print performance data
+	Core::TimeSpan colorConversionTimeGPU = OpenCL::getElapsedTime(colorConversionEvent);
+	std::cout << "Color conversion time (GPU): " << colorConversionTimeGPU.toString() << std::endl;
+
+	previewImageLinear(h_outputGpu, imgCPU.width, imgCPU.height, 248, 0, 8, 8, "After colorConversionKernel():");
+
+	/* Copy to larger image */
+	// get 8x8 divisible image size
+	size_t newWidth, newHeight;
+	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+
+	// create a new and larger vector to store the new image
+	std::vector<cl_uint> h_largeimg (count);
+	// create a larger output vector to store the new output image
+	std::vector<cl_uint> h_largeoutput (count);
+
+	// at this point, the original image vector has been converted to YCbCr
+	// and extra padding has been added to the image to make the image dims divisible by 8
+	copyOntoLargerVectorWithPadding(h_outputGpu, h_largeimg, imgCPU.width, imgCPU.height, newWidth, newHeight);
+
+	previewImageLinear(h_largeimg, newWidth, newHeight, 248, 0, 8, 8, "After copyOntoLargerVectorWithPadding():");
+
+	queue.enqueueWriteBuffer(d_input, true, 0, size, h_largeimg.data(), NULL, NULL);
+
+	memset(h_largeoutput.data(), 255, size);
+
+	queue.enqueueWriteBuffer(d_output, true, 0, size, h_largeoutput.data(), NULL, NULL);
+
+	cl::Event chromaSubsamplingEvent;
+	// create a kernel object for chroma subsampling
+	cl::Kernel chromaSubsamplingKernel(program, "chromaSubsamplingKernel");
+	chromaSubsamplingKernel.setArg<cl::Buffer>(0, d_input);
+	chromaSubsamplingKernel.setArg<cl::Buffer>(1, d_output);
+	chromaSubsamplingKernel.setArg<cl_uint>(2, (cl_uint)newWidth);
+	chromaSubsamplingKernel.setArg<cl_uint>(3, (cl_uint)newHeight);
+
+	// Launch kernel on the compute device
+	queue.enqueueNDRangeKernel(chromaSubsamplingKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &chromaSubsamplingEvent);
+
+	// Copy output data back to host
+	queue.enqueueReadBuffer(d_output, true, 0, size, h_largeoutput.data(), NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// Print performance data
+	Core::TimeSpan chromaSubsamplingTimeGPU = OpenCL::getElapsedTime(chromaSubsamplingEvent);
+	std::cout << "Chroma subsampling time (GPU): " << chromaSubsamplingTimeGPU.toString() << std::endl;
+
+	// testing 
+	std::vector<cl_uint> h_img_test(newWidth * newHeight * 3);
+	switchVectorChannelOrdering(h_largeoutput, h_img_test, newWidth, newHeight);
+	writeVectorToFile("../data/fruit_gpu_subsampling_output.ppm", newWidth, newHeight, h_img_test);
+
+	// previewImageLinear(h_outputGpu, imgCPU.width, imgCPU.height, 248, 0, 8, 8, "After chromaSubsamplingKernel():");
+	// print the first 4 chroma pixels
+	// std::cout << "First 4 chroma subsampled pixels:" << std::endl;
+	// std::cout << "Cr1 " << (int)h_outputGpu[imgCPU.width * imgCPU.height] << std::endl;
+	// std::cout << "Cr2 " << (int)h_outputGpu[imgCPU.width * imgCPU.height + 1] << std::endl;
+	// std::cout << "Cr3 " << (int)h_outputGpu[imgCPU.width * imgCPU.height + imgCPU.width] << std::endl;
+	// std::cout << "Cr4 " << (int)h_outputGpu[imgCPU.width * imgCPU.height + imgCPU.width + 1] << std::endl;
+
+	// create a vector of type *float* to store newInput data
+	std::vector<float> h_newinput (h_outputGpu.begin(), h_outputGpu.end());
+	// create a vector to store newOutput data
+	std::vector<float> h_newoutput (size);
+	// create a vector a fill it with quantization matrix for luminance
+	std::vector<cl_uint> h_quant_mat_lum (64);
+	// copy the quantization matrix for luminance
+	for (size_t i = 0; i < 64; ++i) {
+		h_quant_mat_lum[i] = quant_mat_lum[i / 8][i % 8];
+	}
+	// create a vector a fill it with quantization matrix for chrominance
+	std::vector<cl_uint> h_quant_mat_chrom (64);
+	// copy the quantization matrix for chrominance
+	for (size_t i = 0; i < 64; ++i) {
+		h_quant_mat_chrom[i] = quant_mat_chrom[i / 8][i % 8];
+	}
+
+	memset(h_newoutput.data(), 255, size);
+
+	// allocate buffer for newInput data
+	cl::Buffer d_finput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (cl_float));
+	// allocate buffer for newOutput data
+	cl::Buffer d_foutput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (cl_float));
+	// allocate buffer for quantization matrix for luminance
+	cl::Buffer d_matA = cl::Buffer(context, CL_MEM_READ_ONLY, 64 * sizeof (cl_uint));
+	// allocate buffer for quantization matrix for chrominance
+	cl::Buffer d_matB = cl::Buffer(context, CL_MEM_READ_ONLY, 64 * sizeof (cl_uint));
+
+	// write newInput data to device
+	queue.enqueueWriteBuffer(d_finput, true, 0, size * sizeof (cl_float), h_newinput.data(), NULL, NULL);
+	// write quantization matrix for luminance to device
+	queue.enqueueWriteBuffer(d_matA, true, 0, 64 * sizeof (cl_uint), h_quant_mat_lum.data(), NULL, NULL);
+	// write quantization matrix for chrominance to device
+	queue.enqueueWriteBuffer(d_matB, true, 0, 64 * sizeof (cl_uint), h_quant_mat_chrom.data(), NULL, NULL);
+	// write newOutput data to device
+	queue.enqueueWriteBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
+
+	// create a kernel object for quantization
+	cl::Kernel quantizationKernel(program, "quantizationKernel");
+	quantizationKernel.setArg<cl::Buffer>(0, d_finput);
+	quantizationKernel.setArg<cl::Buffer>(1, d_foutput);
+	quantizationKernel.setArg<cl::Buffer>(2, d_matA);
+	quantizationKernel.setArg<cl::Buffer>(3, d_matB);
+	quantizationKernel.setArg<cl_uint>(4, (cl_uint)imgCPU.width);
+	quantizationKernel.setArg<cl_uint>(5, (cl_uint)imgCPU.height);
+
+	// Launch quantization kernel on the compute device
+	queue.enqueueNDRangeKernel(quantizationKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	// Copy output data back to host
+	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
 
 
 	//previewImage(&imgCPU3, 248, 0, 8, 8);
