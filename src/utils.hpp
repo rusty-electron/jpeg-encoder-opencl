@@ -106,7 +106,6 @@ void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 void previewImageLinearI(std::vector <int>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
-void RLE(float *, std::vector <int>&, std::vector <float>&, int);
 
 void printMsg(std::string);
 void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
@@ -122,5 +121,9 @@ void access2DArrayRow(int *, int );
 void diagonalZigZagBlock(int [], int []);
 void performZigZag(int [][64], int [][64], int);
 
-void performRLEOnAC(int ,std::vector<int>& , std::vector<float>&, int) ;
+void seperateChannels(int [][64], int [][64], int [][64], int [][64], int);
+
+void RLEBlockAC(int [], std::vector<int> ,int); 
+void performRLE(int [][64], std::vector<std::vector<int>>&,int);
+
 

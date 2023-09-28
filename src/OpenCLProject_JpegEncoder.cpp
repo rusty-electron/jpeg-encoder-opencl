@@ -192,6 +192,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// number of rows of 2D array = (total image pixels / 64) * 3
 	// number of columns of 2D array = 64
 	unsigned int rows = (imgCPU_d.width * imgCPU_d.height) / 64 * 3;
+	unsigned int rowsperchannel = (imgCPU_d.width * imgCPU_d.height) / 64;
 	int linear_arr[rows][64];
 	int zigzag_arr[rows][64];
 	
@@ -215,17 +216,40 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	Core::TimeSpan ZigZagTimeCPU = endTime - startTime;
 	std::cout << "ZigZag Time CPU: " << ZigZagTimeCPU.toString() << std::endl;
 
-	// print the first row of the zigzag array
-	// std::cout << "First row of the zigzag array:" << std::endl;
-	// for (int i = 0; i < 64; i++) {
-	// 	std::cout << zigzag_arr[1024][i] << " ";
-	// }
-	// std::cout<<std::endl;
+	// Seperate channels
+	int zigzag_y[rowsperchannel][64];
+	int zigzag_cb[rowsperchannel][64];
+	int zigzag_cr[rowsperchannel][64];
 
-	std::vector<int> rle;
-	std::vector<float> values;
-	// perform RLE on the zigzag array
-	// void performRLEOnAC(zigzag_arr,rle, values,rows);
+	seperateChannels(zigzag_arr, zigzag_y, zigzag_cb, zigzag_cr, rowsperchannel);
+	
+	// print the first row of the zigzag_y array
+	std::cout << "First row of the zigzag_y array:" << std::endl;
+	for (int i = 0; i < 64; i++) {
+		std::cout << zigzag_y[0][i] << " ";
+	}
+	std::cout<<std::endl;
+
+	// 2D vector to store the rle values
+	std::vector<std::vector<int>> y_rle;
+	std::vector<std::vector<int>> cb_rle;
+	std::vector<std::vector<int>> cr_rle;
+
+	
+	// For y channel
+	performRLE(zigzag_y, y_rle, rowsperchannel);
+	// For cb channel
+	performRLE(zigzag_cb, cb_rle, rowsperchannel);
+	// For cr channel
+	performRLE(zigzag_cr, cr_rle, rowsperchannel);
+
+
+
+	// Print first row of y RLE
+	std::cout << "First row of the y RLE:" << std::endl;
+	for (int i = 0; i < y_rle[0].size(); i+=2) {
+		std::cout << "(" << y_rle[0][i] << ", " << y_rle[0][i+1] << ") ";
+	}
 
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
