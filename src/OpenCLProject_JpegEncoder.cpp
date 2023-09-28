@@ -17,6 +17,7 @@
 #include <sstream>
 #include <iostream>
 #include <cmath>
+#include <iomanip>
 
 #include "utils.hpp"
 
@@ -192,29 +193,39 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// number of columns of 2D array = 64
 	unsigned int rows = (imgCPU_d.width * imgCPU_d.height) / 64 * 3;
 	int linear_arr[rows][64];
-	
-	everyMCUisnow2DArray(&imgCPU_d, linear_arr);
-	// print the first row of the 2D array
-	std::cout << "First row of the 2D array:" << std::endl;
-	for (int i = 0; i < 64; i++) {
-		std::cout << linear_arr[88][i] << " ";
-	}
-	std::cout << std::endl;
 	int zigzag_arr[rows][64];
+	
+	startTime = Core::getCurrentTime();
+	everyMCUisnow2DArray(&imgCPU_d, linear_arr);
+
+	// print the first row of the 2D array
+	// std::cout << "First row of the 2D array:" << std::endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	std::cout << std::setw(3) << linear_arr[1024][i] << " ";
+	// 	if ((i + 1) % 8 == 0) {
+	// 		std::cout << std::endl;
+	// 	}
+	// }
+	// std::cout << std::endl;
+
 	// perform zigzag on the 2D array
 	performZigZag(linear_arr, zigzag_arr, rows);
+	endTime = Core::getCurrentTime();
+
+	Core::TimeSpan ZigZagTimeCPU = endTime - startTime;
+	std::cout << "ZigZag Time CPU: " << ZigZagTimeCPU.toString() << std::endl;
 
 	// print the first row of the zigzag array
-	std::cout << "First row of the zigzag array:" << std::endl;
-	for (int i = 0; i < 64; i++) {
-		std::cout << zigzag_arr[88][i] << " ";
-	}
-	std::cout<<std::endl;
+	// std::cout << "First row of the zigzag array:" << std::endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	std::cout << zigzag_arr[1024][i] << " ";
+	// }
+	// std::cout<<std::endl;
 
 	std::vector<int> rle;
 	std::vector<float> values;
 	// perform RLE on the zigzag array
-	void performRLEOnAC(zigzag_arr,rle, values,rows)
+	// void performRLEOnAC(zigzag_arr,rle, values,rows);
 
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
@@ -223,6 +234,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 		cpu_telemetry->DCTTime = static_cast<double>(DCTTimeCPU.getMicroseconds());
 		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
 		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
+		cpu_telemetry->zigZagTime = static_cast<double>(ZigZagTimeCPU.getMicroseconds());
 	}
 
 	// print total time
@@ -397,7 +409,7 @@ int main(int argc, char** argv) {
 	// create a vector of type *float* to store newInput data
 	std::vector<float> h_newinput (h_outputGpu.begin(), h_outputGpu.end());
 	// create a vector to store newOutput data
-	std::vector<float> h_newoutput (size);
+	std::vector<int> h_newoutput (size);
 	// create a vector a fill it with quantization matrix for luminance
 	std::vector<cl_uint> h_quant_mat_lum (64);
 	// copy the quantization matrix for luminance
@@ -416,7 +428,7 @@ int main(int argc, char** argv) {
 	// allocate buffer for newInput data
 	cl::Buffer d_finput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (cl_float));
 	// allocate buffer for newOutput data
-	cl::Buffer d_foutput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (cl_float));
+	cl::Buffer d_foutput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (int));
 	// allocate buffer for quantization matrix for luminance
 	cl::Buffer d_matA = cl::Buffer(context, CL_MEM_READ_ONLY, 64 * sizeof (cl_uint));
 	// allocate buffer for quantization matrix for chrominance
@@ -429,7 +441,7 @@ int main(int argc, char** argv) {
 	// write quantization matrix for chrominance to device
 	queue.enqueueWriteBuffer(d_matB, true, 0, 64 * sizeof (cl_uint), h_quant_mat_chrom.data(), NULL, NULL);
 	// write newOutput data to device
-	queue.enqueueWriteBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
+	queue.enqueueWriteBuffer(d_foutput, true, 0, size * sizeof (int), h_newoutput.data(), NULL, NULL);
 
 	// create a kernel object for quantization
 	cl::Kernel quantizationKernel(program, "quantizationKernel");
@@ -443,9 +455,48 @@ int main(int argc, char** argv) {
 	// Launch quantization kernel on the compute device
 	queue.enqueueNDRangeKernel(quantizationKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
 	// Copy output data back to host
-	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
+	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (int), h_newoutput.data(), NULL, NULL);
 
 	// TODO: use single index for performing zigzag on the GPU
+	int zigzagInput[newWidth * newHeight * 3];
+	int zigzagOutput[newWidth * newHeight * 3];
+
+	everyMCUisnow1DArray(h_newoutput, zigzagInput, newWidth, newHeight);
+
+	previewImageLinearI(h_newoutput, newWidth, newHeight, 0, 0, 8, 8, "Before ZigZag():");
+
+	// print first row of zigzagInput
+	std::cout << "\nFirst row of zigzagInput:" << std::endl;
+	for (int i = 0; i < 64; i++) {
+		std::cout << zigzagInput[i] << " ";
+	}
+	unsigned int dims = newWidth * newHeight * 3;
+	// allocate buffer for zigzagInput data
+	cl::Buffer d_zigzagInput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims);
+	// allocate buffer for zigzagOutput data
+	cl::Buffer d_zigzagOutput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims);
+
+	// write zigzagInput data to device
+	queue.enqueueWriteBuffer(d_zigzagInput, true, 0, dims * sizeof (int), zigzagInput, NULL, NULL);
+	
+	// create a kernel object for zigzag
+	cl::Kernel zigzagKernel(program, "zigzagKernel");
+	zigzagKernel.setArg<cl::Buffer>(0, d_zigzagInput);
+	zigzagKernel.setArg<cl::Buffer>(1, d_zigzagOutput);
+
+	// Launch zigzag kernel on the compute device, only in one dimension
+	queue.enqueueNDRangeKernel(zigzagKernel, cl::NullRange, cl::NDRange(dims), cl::NullRange, NULL, NULL);
+	// Copy output data back to host
+	queue.enqueueReadBuffer(d_zigzagOutput, true, 0, dims * sizeof (int), zigzagOutput, NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// print first row of zigzagOutput
+	std::cout << "\nFirst row of zigzagOutput:" << std::endl;
+	for (int i = 0; i < 64; i++) {
+		std::cout << zigzagOutput[i] << " ";
+	}
 
 	// Calculate speedups
 	std::cout << "Speedups:" << std::endl;
