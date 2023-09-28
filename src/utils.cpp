@@ -360,9 +360,10 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
+// TODO: test it!
 void performQuantizationSimple(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
-	for (size_t y = 0; y < img->height; y += 8) {
-		for (size_t x = 0; x < img->width; x += 8) {
+	for (size_t y = 0; y < img->height; y += 1) {
+		for (size_t x = 0; x < img->width; x += 1) {
 			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
 			pixel->r = std::round(pixel->r / quant_mat_lum[y % 8][x % 8]);
 			pixel->g = std::round(pixel->g / quant_mat_chrom[y % 8][x % 8]);
@@ -505,6 +506,7 @@ void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector 
 	}
 }
 
+// TODO: is this function still required?
 void switchVectorChannelOrdering(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int width, const unsigned int height) {
 	for (size_t y = 0; y < height * width; ++y) {
 		// place first channel in every third position starting with 0

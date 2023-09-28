@@ -458,6 +458,8 @@ int main(int argc, char** argv) {
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (cl_float), h_newoutput.data(), NULL, NULL);
 
+	// TODO: use single index for performing zigzag on the GPU
+
 	// Calculate speedups
 	std::cout << "Speedups:" << std::endl;
 	std::cout << "Color conversion: " << (cpu_telemetry.CSCTime / static_cast<double>(colorConversionTimeGPU.getMicroseconds())) << std::endl;
