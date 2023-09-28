@@ -360,6 +360,17 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
+void performQuantizationSimple(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
+	for (size_t y = 0; y < img->height; y += 8) {
+		for (size_t x = 0; x < img->width; x += 8) {
+			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+			pixel->r = std::round(pixel->r / quant_mat_lum[y % 8][x % 8]);
+			pixel->g = std::round(pixel->g / quant_mat_chrom[y % 8][x % 8]);
+			pixel->b = std::round(pixel->b / quant_mat_chrom[y % 8][x % 8]);
+		}
+	}
+}
+
 void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 	unsigned int rowsPerChannel = img->height * img->width / 64;
 	unsigned int numOfMCUsX = img->width / 8;
@@ -380,7 +391,7 @@ void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 
 void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
 	for (size_t i = 0; i < numRows; ++i) {
-		performZigZagBlock(linear_arr[i], zigzag_arr[i]);
+		// performZigZagBlock(linear_arr[i], zigzag_arr[i]);
 	}
 }
 
