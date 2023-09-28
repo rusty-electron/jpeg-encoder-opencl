@@ -197,37 +197,24 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// print the first row of the 2D array
 	std::cout << "First row of the 2D array:" << std::endl;
 	for (int i = 0; i < 64; i++) {
-		std::cout << linear_arr[1024*2][i] << " ";
-	}
-
-	// Seperate the channels
-	float *y = new float[imgCPU_d.width * imgCPU_d.height];
-	float *cb = new float[imgCPU_d.width * imgCPU_d.height];
-	float *cr = new float[imgCPU_d.width * imgCPU_d.height];
-
-	seperateChannels(&imgCPU_d, image, y, cb, cr);
-
-	// RLE encoding
-	float *y_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
-	float *cb_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
-	float *cr_rle = new float[imgCPU_d.width * imgCPU_d.height*2];
-	int imgSize = imgCPU_d.width * imgCPU_d.height;
-
-	RLE(y, y_rle,imgSize);
-	RLE(cb, cb_rle, imgSize);
-	RLE(cr, cr_rle, imgSize);
-
-	//Print first 20 values of y and y_rle
-	std::cout << "First 20 values of y:" << std::endl;
-	for (int i = 0; i < 20; i++) {
-		std::cout << cb[i] << " ";
+		std::cout << linear_arr[88][i] << " ";
 	}
 	std::cout << std::endl;
-	std::cout << "First 20 values of y_rle:" << std::endl;
-	for (int i = 0; i < 20; i++) {
-		std::cout << cb_rle[i] << " ";
+	int zigzag_arr[rows][64];
+	// perform zigzag on the 2D array
+	performZigZag(linear_arr, zigzag_arr, rows);
+
+	// print the first row of the zigzag array
+	std::cout << "First row of the zigzag array:" << std::endl;
+	for (int i = 0; i < 64; i++) {
+		std::cout << zigzag_arr[88][i] << " ";
 	}
-	std::cout << std::endl;
+	std::cout<<std::endl;
+
+	std::vector<int> rle;
+	std::vector<float> values;
+	// perform RLE on the zigzag array
+	void performRLEOnAC(zigzag_arr,rle, values,rows)
 
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {

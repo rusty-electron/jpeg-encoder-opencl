@@ -104,10 +104,7 @@ void previewImage(ppm_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
-void diagonalZigZag(ppm_d_t * ,float *);
-
-void seperateChannels(ppm_d_t * ,float * , float * , float * , float * );
-void RLE(float *, float * , int );
+void RLE(float *, std::vector <int>&, std::vector <float>&, int);
 
 void printMsg(std::string);
 void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
@@ -117,4 +114,10 @@ void switchVectorChannelOrdering(std::vector <cl_uint>&, std::vector <cl_uint>&,
 void writeVectorToFile(const char *, const unsigned int, const unsigned int, std::vector <cl_uint>&);
 
 void everyMCUisnow2DArray(ppm_d_t *, int [][64]);
-void access2DArrayRow(int *arr, int length);
+void access2DArrayRow(int *, int );
+
+void diagonalZigZagBlock(int [], int []);
+void performZigZag(int [][64], int [][64], int);
+
+void performRLEOnAC(int ,std::vector<int>& , std::vector<float>&, int) ;
+
