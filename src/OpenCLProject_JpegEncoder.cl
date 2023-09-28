@@ -80,7 +80,7 @@ __kernel void chromaSubsamplingKernel(__global uint* d_input, __global uint* d_o
     d_output[pixel_4_index] = d_input[pixel_4_index];
 }
 
-__kernel void quantizationKernel(__global float* d_input, __global float* d_output, __global uint* quant_lum, __global uint* quant_chrom, const unsigned int width, const unsigned int height) {
+__kernel void quantizationKernel(__global float* d_input, __global int* d_output, __global uint* quant_lum, __global uint* quant_chrom, const unsigned int width, const unsigned int height) {
     size_t i = get_global_id(0);
     size_t j = get_global_id(1);
 
@@ -97,7 +97,30 @@ __kernel void quantizationKernel(__global float* d_input, __global float* d_outp
     float u = d_input[width * height + pixel_index];
     float v = d_input[2 * width * height + pixel_index];
 
-    d_output[pixel_index] = y / (float)quant_lum[pixel_index % 64];
-    d_output[width * height + pixel_index] = u / (float)quant_chrom[pixel_index % 64];
-    d_output[2 * width * height + pixel_index] = v / (float)quant_chrom[pixel_index % 64];
+    d_output[pixel_index] = round(y / (float)quant_lum[pixel_index % 64]);
+    d_output[width * height + pixel_index] = round(u / (float)quant_chrom[pixel_index % 64]);
+    d_output[2 * width * height + pixel_index] = round(v / (float)quant_chrom[pixel_index % 64]);
+}
+
+__kernel void zigzagKernel(__global int* d_input, __global int* d_output) {
+    size_t i = get_global_id(0); // MCU index
+    
+    size_t count = get_global_size(0);
+
+    if (i >= count) {
+        return;
+    }
+
+    int zigzag[64] = { 0, 1, 8, 16, 9, 2, 3, 10,
+                       17, 24, 32, 25, 18, 11, 4, 5,
+                       12, 19, 26, 33, 40, 48, 41, 34,
+                       27, 20, 13, 6, 7, 14, 21, 28,
+                       35, 42, 49, 56, 57, 50, 43, 36,
+                       29, 22, 15, 23, 30, 37, 44, 51,
+                       58, 59, 52, 45, 38, 31, 39, 46,
+                       53, 60, 61, 54, 47, 55, 62, 63 };
+
+    for (int j = 0; j < 64; j++) {
+        d_output[i * 64 + j] = d_input[i * 64 + zigzag[j]];
+    }
 }

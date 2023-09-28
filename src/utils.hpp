@@ -68,6 +68,7 @@ struct CPUTelemetry {
     double DCTTime;
     double QuantTime;
     double TotalCopyTime;
+    double zigZagTime;
 };
 
 int readPPMImage(const char *, size_t *, size_t *, rgb_pixel_t **);
@@ -103,6 +104,7 @@ void performQuantization(ppm_d_t *, const unsigned int[][8], const unsigned int[
 void previewImage(ppm_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
+void previewImageLinearI(std::vector <int>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
 
 void printMsg(std::string);
@@ -113,6 +115,7 @@ void switchVectorChannelOrdering(std::vector <cl_uint>&, std::vector <cl_uint>&,
 void writeVectorToFile(const char *, const unsigned int, const unsigned int, std::vector <cl_uint>&);
 
 void everyMCUisnow2DArray(ppm_d_t *, int [][64]);
+void everyMCUisnow1DArray(std::vector<int>&, int [], unsigned int, unsigned int);
 void access2DArrayRow(int *, int );
 
 void diagonalZigZagBlock(int [], int []);

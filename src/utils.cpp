@@ -344,6 +344,26 @@ void previewImageLinear(std::vector <cl_uint>& v, const unsigned int width, cons
 	}
 }
 
+void previewImageLinearI(std::vector<int>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
+	// print message if provided
+	printMsg(msg);
+
+	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
+	size_t idx;
+	int val1, val2, val3;
+	for (size_t y = startY; y < startY + lengthY; ++y) {
+		for (size_t x = startX; x < startX + lengthX; ++x) {
+			idx = y * width + x;
+			val1 = v[idx];
+			val2 = v[idx + width * height];
+			val3 = v[idx + width * height * 2];
+			// provide three spaces for each pixel
+			std::cout << "(" << std::setw(3) << (int)val1 << ", " << std::setw(3) << (int)val2 << ", " << std::setw(3) << (int)val3 << ")   ";
+		}
+		std::cout << std::endl;
+	}
+}
+
 // TODO: if the simpler (2-loop) GPU implementation works, modify this function to use only two loops instead of four
 void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
 	for (size_t y = 0; y < img->height; y += 8) {
@@ -390,9 +410,24 @@ void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 	}
 }
 
+void everyMCUisnow1DArray(std::vector<int>& input_arr, int output_arr[], unsigned int width, unsigned int height) {
+	unsigned int rowsPerChannel = height * width / 64;
+	unsigned int numOfMCUsX = width / 8;
+	for (size_t y = 0; y < height; y += 8) {
+		for (size_t x = 0; x < width; x += 8) {
+			for (size_t v = 0; v < 8; ++v) {
+				for (size_t u = 0; u < 8; ++u) {
+					output_arr[v * 8 + u + (y / 8 * numOfMCUsX + x / 8) * 64] = input_arr[(y + v) * width + (x + u)];
+					output_arr[v * 8 + u + (y / 8 * numOfMCUsX + x / 8 + rowsPerChannel) * 64] = input_arr[(y + v) * width + (x + u) + width * height];
+					output_arr[v * 8 + u + (y / 8 * numOfMCUsX + x / 8 + rowsPerChannel * 2) * 64] = input_arr[(y + v) * width + (x + u) + width * height * 2];
+				}
+			}
+		}
+	}
+}
+
 // Function to perform diagonal zigzag traversal on an 2D linearized array and store the result in a 1D array
 void diagonalZigZagBlock(int linear_arr[], int zigzag_arr[]) {
- 
     int index = 0; // Index for zigzag_arr
 	int MCU[8][8];
 	for (int i = 0; i < 64; i++) {
@@ -412,10 +447,23 @@ void diagonalZigZagBlock(int linear_arr[], int zigzag_arr[]) {
     }
 }
 
-void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
+void diagonalZigZagBlockLinear(int linear_arr[], int zigzag_arr[]) {
+	unsigned int index = 0;
+	for (int diag = 0; diag < 16 - 1; ++diag) {
+		const auto i_min = std::max(0, diag - 8 + 1);
+		const auto i_max = i_min + std::min(diag, 2*(8 - 1) - diag);
 
+		for (auto i = i_min; i <= i_max; ++i) {
+			const auto row = diag % 2 ? i : (diag - i);
+			const auto col = diag % 2 ? (diag - i) : i;
+			zigzag_arr[index++] = linear_arr[row * 8 + col];
+		}
+	}
+}
+
+void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
 	for (size_t i = 0; i < numRows; ++i) {
-		diagonalZigZagBlock(linear_arr[i], zigzag_arr[i]);
+		diagonalZigZagBlockLinear(linear_arr[i], zigzag_arr[i]);
 	}
 }
 
@@ -431,7 +479,7 @@ void seperateChannels(int zigzag_arr[][64], int zigzag_arr_y[][64], int zigzag_a
 }
 
 void RLEBlockAC(int zigzag_array[], std::vector<int>& rle_vector) {
-    int count = 0;
+  int count = 0;
 	int lastNonZeroIndex = 0;
 
 	// Get the index of the last non-zero element
