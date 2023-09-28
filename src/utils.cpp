@@ -390,85 +390,62 @@ void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 	}
 }
 
-void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
-	for (size_t i = 0; i < numRows; ++i) {
-		// performZigZagBlock(linear_arr[i], zigzag_arr[i]);
+// Function to perform diagonal zigzag traversal on an 2D linearized array and store the result in a 1D array
+void diagonalZigZagBlock(int linear_arr[], int zigzag_arr[]) {
+ 
+    int index = 0; // Index for zigzag_arr
+	int MCU[8][8];
+	for (int i = 0; i < 64; i++) {
+		MCU[i / 8][i % 8] = linear_arr[i];
 	}
-}
 
-// Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
-void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
-    const int n = img->height;
-    const int m = img->width;
-    
-    int index = 0; // Index for zigzagOrder
-	rgb_pixel_d_t *pixels = img->data;
-
-    for (int diag = 0; diag < n + m - 1; ++diag) {
-        const auto i_min = std::max(0, diag - m + 1);
-        const auto i_max = i_min + std::min(diag, n - 1);
+    for (int diag = 0; diag < 16 - 1; ++diag) {
+        const auto i_min = std::max(0, diag - 8 + 1);
+        const auto i_max = i_min + std::min(diag, 8 - 1);
 
         for (auto i = i_min; i <= i_max; ++i) {
             const auto row = diag % 2 ? i : (diag - i);
             const auto col = diag % 2 ? (diag - i) : i;
-			if (index < img->width * img->height * 3) {
-				// (row, col) is the current element
-				zigzagOrder[index] = pixels[col * img->width + row].r;
-				zigzagOrder[index + 1] = pixels[col * img->width + row].g;
-				zigzagOrder[index + 2] = pixels[col * img->width + row].b;
+			zigzag_arr[index++] = MCU[row][col];
+		}
+			
+    }
+}
 
-				index += 3;
-			}
+void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
+
+	for (size_t i = 0; i < numRows; ++i) {
+		diagonalZigZagBlock(linear_arr[i], zigzag_arr[i]);
+	}
+}
+
+
+
+void RLE(const float* channel, std::vector<int>& runLengths, std::vector<float>& values, int channelSize) {
+    int count = 0;
+
+    // RLE for the AC components
+    for (int i = 1; i < channelSize; i++) {
+        // Count the number of zeros before each element
+        if (channel[i] == 0) {
+            count++;
+        } else {
+            // Store the number of zeros before the element
+            runLengths.push_back(count);
+            // Store the element
+            values.push_back(channel[i]);
+            // Reset the count
+            count = 0;
         }
     }
-	//Print the last 30 elements of the zigzag order
-	int numElements = img->width * img->height * 3;
-	for (int i = 0; i < 40; i++) {
-		printf("%f ", zigzagOrder[i]);
+}
+
+void performRLEOnAC(int zigzag_arr[][64],std::vector<int>& runLengths, std::vector<float>& values,int numRows) {
+	for (size_t i = 0; i < numRows; ++i) {
+		RLE(zigzag_arr[i], runLengths, values, 64);
 	}
 }
 
-// Seperate the zigzag order into 3 seperate arrays for each channel
-void seperateChannels(ppm_d_t* img,float* zigzagOrder, float* y, float* cb, float* cr){
-
-	int yIndex = 0;
-    int cbIndex = 0;
-    int crIndex = 0;
-
-    for (int i =  0; i < img->width * img->height * 3; i += 3) {
-        y[yIndex] = zigzagOrder[i];
-        cb[cbIndex] = zigzagOrder[i + 1];
-        cr[crIndex] = zigzagOrder[i + 2];
-
-        yIndex++;
-       	cbIndex++;
-        crIndex++;
-    }
-}
-// RLE implementation
-void RLE(float* channel, float* RLEArray, int channelSize) {
-	int index = 0;
-	int count = 0;
-	// The first element is the DC coefficient and not used in the RLE
-
-	// RLE for the AC components
-	for (int i = 1; i < channelSize; i++) {
-		// count the number of zeros before each element
-		if (channel[i] == 0) {
-			count++;
-		}
-		else {
-			// store the number of zeros before the element
-			RLEArray[index] = count;
-			index++;
-			// store the element
-			RLEArray[index] = channel[i];
-			index++;
-			// reset the count
-			count = 0;
-		}
-	}
-}
 
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
 	for (size_t idx = 0; idx < img->width * img->height; ++idx) {
