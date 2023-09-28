@@ -419,33 +419,64 @@ void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
 	}
 }
 
-
-
-void RLE(const float* channel, std::vector<int>& runLengths, std::vector<float>& values, int channelSize) {
-    int count = 0;
-
-    // RLE for the AC components
-    for (int i = 1; i < channelSize; i++) {
-        // Count the number of zeros before each element
-        if (channel[i] == 0) {
-            count++;
-        } else {
-            // Store the number of zeros before the element
-            runLengths.push_back(count);
-            // Store the element
-            values.push_back(channel[i]);
-            // Reset the count
-            count = 0;
-        }
-    }
-}
-
-void performRLEOnAC(int zigzag_arr[][64],std::vector<int>& runLengths, std::vector<float>& values,int numRows) {
-	for (size_t i = 0; i < numRows; ++i) {
-		RLE(zigzag_arr[i], runLengths, values, 64);
+// Seperate the zigzag array into three parts for each channel
+void seperateChannels(int zigzag_arr[][64], int zigzag_arr_y[][64], int zigzag_arr_cb[][64], int zigzag_arr_cr[][64], int numRowsPerChannel) {
+	for (size_t i = 0; i < numRowsPerChannel; ++i) {
+		for (size_t j = 0; j < 64; ++j) {
+			zigzag_arr_y[i][j] = zigzag_arr[i][j];
+			zigzag_arr_cb[i][j] = zigzag_arr[i+numRowsPerChannel][j];
+			zigzag_arr_cr[i][j] = zigzag_arr[i+(numRowsPerChannel*2)][j];
+		}
 	}
 }
 
+void RLEBlockAC(int zigzag_array[], std::vector<int>& rle_vector) {
+    int count = 0;
+	int lastNonZeroIndex = 0;
+
+	// Get the index of the last non-zero element
+	for (int i = 63; i >= 0; i--) {
+		if (zigzag_array[i] != 0) {
+			lastNonZeroIndex=i; // Return the index of the last non-zero element
+			break;
+		}
+	}
+    // RLE for the AC components
+    for (int i = 1; i <= lastNonZeroIndex; i++) {
+        // Count the number of zeros before each element
+        if (zigzag_array[i] == 0) {
+			if (count == 15) {
+				// Store the number of zeros
+				rle_vector.push_back(count);
+				// Store the value of the non-zero element
+				rle_vector.push_back(0);
+				count = 0;
+			} else {
+            	count++;
+			}
+		}
+		else 
+		{		
+			// Store the number of zeros
+			rle_vector.push_back(count);
+			// Store the value of the non-zero element
+			rle_vector.push_back(zigzag_array[i]);
+			count = 0;
+		}
+    }
+	rle_vector.push_back(0);
+    rle_vector.push_back(0);
+}
+
+void performRLE(int zigzag_array[][64], std::vector<std::vector<int>>& rle_vector, int rowsperchannel)
+{
+	for(size_t i=0; i <rowsperchannel; i++)
+	{
+		std::vector<int> newRow;
+		RLEBlockAC(zigzag_array[i], newRow);
+		rle_vector.push_back(newRow);
+	}
+}
 
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
 	for (size_t idx = 0; idx < img->width * img->height; ++idx) {
