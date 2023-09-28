@@ -1,5 +1,4 @@
 # custom
-report/
 build/*
 .vscode
 .idea
