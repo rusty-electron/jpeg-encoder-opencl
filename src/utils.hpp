@@ -61,6 +61,15 @@ const unsigned int quant_mat_chrom[8][8] = {
     {99, 99, 99, 99, 99, 99, 99, 99}
 };
 
+// struct to store cpu telemetry data
+struct CPUTelemetry {
+    double CSCTime;
+    double CDSTime;
+    double DCTTime;
+    double QuantTime;
+    double TotalCopyTime;
+};
+
 int readPPMImage(const char *, size_t *, size_t *, rgb_pixel_t **);
 int writePPMImage(const char *, size_t, size_t, rgb_pixel_t *);
 void removeRedChannel(ppm_t *);
@@ -106,3 +115,6 @@ void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
 void copyOntoLargerVectorWithPadding(std::vector <cl_uint>&, std::vector <cl_uint>&, const unsigned int, const unsigned int, const unsigned int, const unsigned int);
 void switchVectorChannelOrdering(std::vector <cl_uint>&, std::vector <cl_uint>&, const unsigned int, const unsigned int);
 void writeVectorToFile(const char *, const unsigned int, const unsigned int, std::vector <cl_uint>&);
+
+void everyMCUisnow2DArray(ppm_d_t *, int [][64]);
+void access2DArrayRow(int *arr, int length);

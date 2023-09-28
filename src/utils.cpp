@@ -360,6 +360,42 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
+// TODO: test it!
+void performQuantizationSimple(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
+	for (size_t y = 0; y < img->height; y += 1) {
+		for (size_t x = 0; x < img->width; x += 1) {
+			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+			pixel->r = std::round(pixel->r / quant_mat_lum[y % 8][x % 8]);
+			pixel->g = std::round(pixel->g / quant_mat_chrom[y % 8][x % 8]);
+			pixel->b = std::round(pixel->b / quant_mat_chrom[y % 8][x % 8]);
+		}
+	}
+}
+
+void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
+	unsigned int rowsPerChannel = img->height * img->width / 64;
+	unsigned int numOfMCUsX = img->width / 8;
+	for (size_t y = 0; y < img->height; y += 8) {
+		for (size_t x = 0; x < img->width; x += 8) {
+			for (size_t v = 0; v < 8; ++v) {
+				for (size_t u = 0; u < 8; ++u) {
+					rgb_pixel_d_t *pixel = &img->data[(y + v) * img->width + (x + u)];
+					
+					linear_arr[y / 8 * numOfMCUsX + x / 8][v * 8 + u] = pixel->r;
+					linear_arr[y / 8 * numOfMCUsX + x / 8 + rowsPerChannel][v * 8 + u] = pixel->g;
+					linear_arr[y / 8 * numOfMCUsX + x / 8 + rowsPerChannel * 2][v * 8 + u] = pixel->b;
+				}
+			}
+		}
+	}
+}
+
+void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
+	for (size_t i = 0; i < numRows; ++i) {
+		// performZigZagBlock(linear_arr[i], zigzag_arr[i]);
+	}
+}
+
 // Function to perform diagonal zigzag traversal on an image matrix and store the result in a 1D array
 void diagonalZigZag(ppm_d_t* img, float* zigzagOrder) {
     const int n = img->height;
@@ -474,6 +510,7 @@ void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector 
 	}
 }
 
+// TODO: is this function still required?
 void switchVectorChannelOrdering(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int width, const unsigned int height) {
 	for (size_t y = 0; y < height * width; ++y) {
 		// place first channel in every third position starting with 0
