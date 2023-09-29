@@ -124,8 +124,14 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
     }
 	
 	// get 8x8 divisible image size
-	size_t newWidth, newHeight;
-	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+	size_t newWidth, newHeight; // TODO: optimize this step further
+
+	if (imgCPU.width % 8 == 0 && imgCPU.height % 8 == 0) {
+		newWidth = imgCPU.width;
+		newHeight = imgCPU.height;
+	} else {
+		getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+	}
 
 	ppm_t imgCPU3;
 	// copy the image
@@ -383,7 +389,12 @@ int main(int argc, char** argv) {
 	/* Copy to larger image */
 	// get 8x8 divisible image size
 	size_t newWidth, newHeight;
-	getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+	if (imgCPU.width % 8 == 0 && imgCPU.height % 8 == 0) {
+		newWidth = imgCPU.width;
+		newHeight = imgCPU.height;
+	} else {
+		getNearest8x8ImageSize(imgCPU.width, imgCPU.height, &newWidth, &newHeight);
+	}
 
 	// create a new and larger vector to store the new image
 	std::vector<cl_uint> h_largeimg (count);
