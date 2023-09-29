@@ -26,3 +26,56 @@ __kernel void colorConversionKernel(__global uint* d_input, __global uint* d_out
     d_output[width * height + j * width + i] = u;
     d_output[2 * width * height + j * width + i] = v;
 }
+
+__kernel void performDCTBlock(__global ppm_d_t* img, int startX, int startY) {
+    int u = get_global_id(0);  // Thread ID along the x-axis
+    int v = get_global_id(1);  // Thread ID along the y-axis
+
+    int width = img->width;
+    int height = img->height;
+
+    double alphaU = (u == 0) ? 1.0 : 1.0 / sqrt(2.0);
+    double alphaV = (v == 0) ? 1.0 : 1.0 / sqrt(2.0);
+
+    double sumR = 0.0;
+    double sumG = 0.0;
+    double sumB = 0.0;
+
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            int pixelX = startX + x;
+            int pixelY = startY + y;
+
+            if (pixelX < width && pixelY < height) {
+                __global rgb_pixel_d_t* pixel = &img->data[pixelY * width + pixelX];
+                double cosValX = cos((2.0 * pixelX + 1.0) * u * M_PI / 16.0);
+                double cosValY = cos((2.0 * pixelY + 1.0) * v * M_PI / 16.0);
+
+                sumR += pixel->r * cosValX * cosValY;
+                sumG += pixel->g * cosValX * cosValY;
+                sumB += pixel->b * cosValX * cosValY;
+            }
+        }
+    }
+
+    sumR *= (alphaU * alphaV / 4.0);
+    sumG *= (alphaU * alphaV / 4.0);
+    sumB *= (alphaU * alphaV / 4.0);
+
+    int x_val = startX + u;
+    int y_val = startY + v;
+    
+    if (x_val < width && y_val < height) {
+        __global rgb_pixel_d_t* pixel = &img->data[y_val * width + x_val];
+        pixel->r = sumR;
+        pixel->g = sumG;
+        pixel->b = sumB;
+    }
+}
+
+__kernel void performDCT(__global ppm_d_t* img) {
+    int startX = get_global_id(0) * 8;
+    int startY = get_global_id(1) * 8;
+
+    performDCTBlock(img, startX, startY);
+}
