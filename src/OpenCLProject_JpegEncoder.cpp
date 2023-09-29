@@ -551,12 +551,13 @@ int main(int argc, char** argv) {
 	std::cout << std::endl;
 
 	// Run Length Encoding
-	int rleOutput[dims * 2];
+	int dims_for_rle = dims / 64 * 66;
+	int rleOutput[dims_for_rle];
 
 	// allocate buffer for rle step
 	cl::Buffer d_rleInput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims);
 	// allocate buffer for rleOutput data
-	cl::Buffer d_rleOutput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims * 2);
+	cl::Buffer d_rleOutput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims_for_rle);
 
 	// write zigzagOutput data to device
 	queue.enqueueWriteBuffer(d_rleInput, true, 0, dims * sizeof (int), zigzagOutput, NULL, NULL);
@@ -571,7 +572,7 @@ int main(int argc, char** argv) {
 	queue.enqueueNDRangeKernel(rleKernel, 0, dims / 64, 64, NULL, &rleEvent);
 
 	// Copy output data back to host
-	queue.enqueueReadBuffer(d_rleOutput, true, 0, dims * sizeof (int) * 2, rleOutput, NULL, NULL);
+	queue.enqueueReadBuffer(d_rleOutput, true, 0, dims_for_rle * sizeof (int), rleOutput, NULL, NULL);
 
 	// Wait for all commands to complete
 	queue.finish();
@@ -581,11 +582,11 @@ int main(int argc, char** argv) {
 
 	// print first row of rleOutput
 	std::cout << "\nFirst row of rleOutput:" << std::endl;
-	for (int i = 0; i < 64 * 2; i+=2) {
+	for (int i = 0; i < 64 * 2 + 2; i+=2) {
+		std::cout << "(" << rleOutput[i] << ", " << rleOutput[i+1] << ") ";
 		if (rleOutput[i] == 0 && rleOutput[i+1] == 0) {
 			break;
 		}
-		std::cout << "(" << rleOutput[i] << ", " << rleOutput[i+1] << ") ";
 	}
 
 	// Calculate speedups

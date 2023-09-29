@@ -184,6 +184,6 @@ __kernel void rleKernel(__global int* d_input, __global int* d_output) {
             count_zeroes = 0;
         }
     }
-    d_output[i * 64 + 2 * j] = 1;
-    d_output[i * 64 + 2 * j + 1] = 1;
+    d_output[i * 64 + 2 * j] = 0;
+    d_output[i * 64 + 2 * j + 1] = 0;
 }
