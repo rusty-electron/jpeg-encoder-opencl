@@ -80,6 +80,24 @@ __kernel void chromaSubsamplingKernel(__global uint* d_input, __global uint* d_o
     d_output[pixel_4_index] = d_input[pixel_4_index];
 }
 
+__kernel void LevelShiftKernel(__global float* d_input, __global float* d_output, const unsigned int width, const unsigned int height) {
+    size_t i = get_global_id(0);
+    size_t j = get_global_id(1);
+
+    size_t countX = get_global_size(0);
+    size_t countY = get_global_size(1);
+
+    if (i >= width || j >= height) {
+        return;
+    }
+
+    size_t pixel_index = j * width + i;
+
+    d_output[pixel_index] = d_input[pixel_index] - 128;
+    d_output[width * height + pixel_index] = d_input[width * height + pixel_index] - 128;
+    d_output[2 * width * height + pixel_index] = d_input[2 * width * height + pixel_index] - 128;
+}
+
 __kernel void quantizationKernel(__global float* d_input, __global int* d_output, __global uint* quant_lum, __global uint* quant_chrom, const unsigned int width, const unsigned int height) {
     size_t i = get_global_id(0);
     size_t j = get_global_id(1);

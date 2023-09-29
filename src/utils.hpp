@@ -65,6 +65,7 @@ const unsigned int quant_mat_chrom[8][8] = {
 struct CPUTelemetry {
     double CSCTime;
     double CDSTime;
+    double levelShiftTime;
     double DCTTime;
     double QuantTime;
     double TotalCopyTime;
@@ -104,9 +105,10 @@ void performQuantization(ppm_d_t *, const unsigned int[][8], const unsigned int[
 
 void previewImage(ppm_t *, size_t, size_t, size_t, size_t, std::string = "");
 void previewImageD(ppm_d_t *, size_t, size_t, size_t, size_t, std::string = "");
+
 void previewImageLinear(std::vector <cl_uint>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 void previewImageLinearI(std::vector <int>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
-
+void previewImageLinearD(std::vector <float>&, const unsigned int, const unsigned int, size_t , size_t , size_t , size_t, std::string msg = "");
 
 void printMsg(std::string);
 void copyImageToVector(ppm_t *, std::vector <cl_uint>&);
