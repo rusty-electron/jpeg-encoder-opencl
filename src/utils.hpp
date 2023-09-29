@@ -69,6 +69,7 @@ struct CPUTelemetry {
     double QuantTime;
     double TotalCopyTime;
     double zigZagTime;
+    double RLETime;
 };
 
 int readPPMImage(const char *, size_t *, size_t *, rgb_pixel_t **);

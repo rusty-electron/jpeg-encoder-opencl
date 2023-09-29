@@ -236,12 +236,17 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	std::vector<std::vector<int>> cr_rle;
 
 	
+	startTime = Core::getCurrentTime();
 	// For y channel
 	performRLE(zigzag_y, y_rle, rowsperchannel);
 	// For cb channel
 	performRLE(zigzag_cb, cb_rle, rowsperchannel);
 	// For cr channel
 	performRLE(zigzag_cr, cr_rle, rowsperchannel);
+	endTime = Core::getCurrentTime();
+
+	Core::TimeSpan RLETimeCPU = endTime - startTime;
+	std::cout << "RLE Time CPU: " << RLETimeCPU.toString() << std::endl;
 
 
 
@@ -259,10 +264,11 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
 		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
 		cpu_telemetry->zigZagTime = static_cast<double>(ZigZagTimeCPU.getMicroseconds());
+		cpu_telemetry->RLETime = static_cast<double>(RLETimeCPU.getMicroseconds());
 	}
 
 	// print total time
-	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU).toString() << std::endl;
+	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU + ZigZagTimeCPU + RLETimeCPU).toString() << std::endl;
 
 	return 0;
 }
@@ -490,10 +496,12 @@ int main(int argc, char** argv) {
 	previewImageLinearI(h_newoutput, newWidth, newHeight, 0, 0, 8, 8, "Before ZigZag():");
 
 	// print first row of zigzagInput
-	std::cout << "\nFirst row of zigzagInput:" << std::endl;
+	std::cout << "First row of zigzagInput:" << std::endl;
 	for (int i = 0; i < 64; i++) {
 		std::cout << zigzagInput[i] << " ";
 	}
+	std::cout << std::endl;
+
 	unsigned int dims = newWidth * newHeight * 3;
 	// allocate buffer for zigzagInput data
 	cl::Buffer d_zigzagInput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims);
@@ -503,35 +511,75 @@ int main(int argc, char** argv) {
 	// write zigzagInput data to device
 	queue.enqueueWriteBuffer(d_zigzagInput, true, 0, dims * sizeof (int), zigzagInput, NULL, NULL);
 	
+	cl::Event zigzagEvent;
 	// create a kernel object for zigzag
 	cl::Kernel zigzagKernel(program, "zigzagKernel");
 	zigzagKernel.setArg<cl::Buffer>(0, d_zigzagInput);
 	zigzagKernel.setArg<cl::Buffer>(1, d_zigzagOutput);
 
-	// Launch zigzag kernel on the compute device, only in one dimension
-	queue.enqueueNDRangeKernel(zigzagKernel, cl::NullRange, cl::NDRange(dims), cl::NullRange, NULL, NULL);
+	// Launch zigzag kernel on the compute device
+	queue.enqueueNDRangeKernel(zigzagKernel, cl::NullRange, cl::NDRange(dims / 64, 64), cl::NDRange(wgSizeX, wgSizeY), NULL, &zigzagEvent);
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_zigzagOutput, true, 0, dims * sizeof (int), zigzagOutput, NULL, NULL);
 
 	// Wait for all commands to complete
 	queue.finish();
 
+	Core::TimeSpan zigzagTimeGPU = OpenCL::getElapsedTime(zigzagEvent);
+	std::cout << "ZigZag time (GPU): " << zigzagTimeGPU.toString() << std::endl;
+
 	// print first row of zigzagOutput
 	std::cout << "\nFirst row of zigzagOutput:" << std::endl;
 	for (int i = 0; i < 64; i++) {
 		std::cout << zigzagOutput[i] << " ";
 	}
+	std::cout << std::endl;
+
+	// Run Length Encoding
+	int rleOutput[dims * 2];
+
+	// allocate buffer for rle step
+	cl::Buffer d_rleInput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims);
+	// allocate buffer for rleOutput data
+	cl::Buffer d_rleOutput = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof (int) * dims * 2);
+
+	// write zigzagOutput data to device
+	queue.enqueueWriteBuffer(d_rleInput, true, 0, dims * sizeof (int), zigzagOutput, NULL, NULL);
+
+	cl::Event rleEvent;
+	// create a kernel object for rle
+	cl::Kernel rleKernel(program, "rleKernel");
+	rleKernel.setArg<cl::Buffer>(0, d_rleInput);
+	rleKernel.setArg<cl::Buffer>(1, d_rleOutput);
+
+	// run length encoding in single index
+	queue.enqueueNDRangeKernel(rleKernel, 0, dims / 64, 64, NULL, &rleEvent);
+
+	// Copy output data back to host
+	queue.enqueueReadBuffer(d_rleOutput, true, 0, dims * sizeof (int) * 2, rleOutput, NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	Core::TimeSpan rleTimeGPU = OpenCL::getElapsedTime(rleEvent);
+	std::cout << "RLE time (GPU): " << rleTimeGPU.toString() << std::endl;
+
+	// print first row of rleOutput
+	std::cout << "\nFirst row of rleOutput:" << std::endl;
+	for (int i = 0; i < 64 * 2; i+=2) {
+		if (rleOutput[i] == 0 && rleOutput[i+1] == 0) {
+			break;
+		}
+		std::cout << "(" << rleOutput[i] << ", " << rleOutput[i+1] << ") ";
+	}
 
 	// Calculate speedups
-	std::cout << "Speedups:" << std::endl;
+	std::cout << "\n## Speedups: ##" << std::endl;
 	std::cout << "Color conversion: " << (cpu_telemetry.CSCTime / static_cast<double>(colorConversionTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "Chroma subsampling: " << (cpu_telemetry.CDSTime / static_cast<double>(chromaSubsamplingTimeGPU.getMicroseconds())) << std::endl;
+	std::cout << "ZigZag: " << (cpu_telemetry.zigZagTime / static_cast<double>(zigzagTimeGPU.getMicroseconds())) << std::endl;
+	std::cout << "RLE: " << (cpu_telemetry.RLETime / static_cast<double>(rleTimeGPU.getMicroseconds())) << std::endl;
 
-	//previewImage(&imgCPU3, 248, 0, 8, 8);
-	// uint8_t *imgPtr = &image;
-	// int size;
-	// size = easyPPMRead(imgPtr);
-	// csc(imgPtr, size);
 	// Check whether results are correct
 	std::size_t errorCount = 0;
 	// for (size_t i = 0; i < countX; i = i + 1) { //loop in the x-direction

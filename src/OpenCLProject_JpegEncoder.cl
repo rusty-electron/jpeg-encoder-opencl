@@ -102,7 +102,7 @@ __kernel void quantizationKernel(__global float* d_input, __global int* d_output
     d_output[2 * width * height + pixel_index] = round(v / (float)quant_chrom[pixel_index % 64]);
 }
 
-__kernel void zigzagKernel(__global int* d_input, __global int* d_output) {
+__kernel void zigzagKernel2(__global int* d_input, __global int* d_output) {
     size_t i = get_global_id(0); // MCU index
     
     size_t count = get_global_size(0);
@@ -123,4 +123,67 @@ __kernel void zigzagKernel(__global int* d_input, __global int* d_output) {
     for (int j = 0; j < 64; j++) {
         d_output[i * 64 + j] = d_input[i * 64 + zigzag[j]];
     }
+}
+
+__kernel void zigzagKernel(__global int* d_input, __global int* d_output) {
+    size_t i = get_global_id(0); // MCU index
+    size_t j = get_global_id(1); // index within MCU
+    
+    size_t count_i = get_global_size(0);
+    size_t count_j = get_global_size(1);
+
+
+    if (i >= count_i || j >= count_j) {
+        return;
+    }
+
+    int zigzag[64] = { 0, 1, 8, 16, 9, 2, 3, 10,
+                       17, 24, 32, 25, 18, 11, 4, 5,
+                       12, 19, 26, 33, 40, 48, 41, 34,
+                       27, 20, 13, 6, 7, 14, 21, 28,
+                       35, 42, 49, 56, 57, 50, 43, 36,
+                       29, 22, 15, 23, 30, 37, 44, 51,
+                       58, 59, 52, 45, 38, 31, 39, 46,
+                       53, 60, 61, 54, 47, 55, 62, 63 };
+
+    d_output[i * 64 + j] = d_input[i * 64 + zigzag[j]];
+}
+
+__kernel void rleKernel(__global int* d_input, __global int* d_output) {
+    size_t i = get_global_id(0); // MCU index
+    
+    size_t count = get_global_size(0);
+
+    if (i >= count) {
+        return;
+    }
+
+    int count_zeroes = 0;
+    int last_non_zero_index = 0;
+
+    for (int k = 63; k >= 0; k--) {
+        if (d_input[i * 64 + k] != 0) {
+            last_non_zero_index = k;
+            break;
+        }
+    }
+
+    int j;
+    for (j = 0; j <= last_non_zero_index; j++) {
+        if (d_input[i * 64 + j] == 0) {
+            if (count_zeroes == 15) {
+                d_output[i * 64 + 2 * j] = count_zeroes;
+                d_output[i * 64 + 2 * j + 1] = 0;
+                count_zeroes = 0;
+            } else {
+                count_zeroes++;
+            }
+        } else {
+            d_output[i * 64 + 2 * j] = count_zeroes;
+            d_output[i * 64 + 2 * j + 1] = d_input[i * 64 + j];
+            count_zeroes = 0;
+        }
+    }
+    d_output[i * 64 + 2 * j] = 1;
+    d_output[i * 64 + 2 * j + 1] = 1;
 }
