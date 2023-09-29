@@ -364,6 +364,27 @@ void previewImageLinearI(std::vector<int>& v, const unsigned int width, const un
 	}
 }
 
+// TODO: use template to avoid code duplication
+void previewImageLinearD(std::vector<float>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
+	// print message if provided
+	printMsg(msg);
+
+	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
+	size_t idx;
+	double val1, val2, val3;
+	for (size_t y = startY; y < startY + lengthY; ++y) {
+		for (size_t x = startX; x < startX + lengthX; ++x) {
+			idx = y * width + x;
+			val1 = v[idx];
+			val2 = v[idx + width * height];
+			val3 = v[idx + width * height * 2];
+			// provide three spaces for each pixel
+			std::cout << "(" << std::setw(3) << (int)val1 << ", " << std::setw(3) << (int)val2 << ", " << std::setw(3) << (int)val3 << ")   ";
+		}
+		std::cout << std::endl;
+	}
+}
+
 // TODO: if the simpler (2-loop) GPU implementation works, modify this function to use only two loops instead of four
 void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
 	for (size_t y = 0; y < img->height; y += 8) {

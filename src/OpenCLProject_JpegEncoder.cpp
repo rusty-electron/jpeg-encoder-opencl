@@ -176,7 +176,12 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 
 	startTime = Core::getCurrentTime();
 	substractfromAll(&imgCPU_d, 128.0);
+	endTime = Core::getCurrentTime();
 
+	Core::TimeSpan levelShiftingCPU = endTime - startTime;
+	std::cout << "Level Shifting Time CPU: " << levelShiftingCPU.toString() << std::endl;
+
+	startTime = Core::getCurrentTime();
 	performDCT(&imgCPU_d);
 	endTime = Core::getCurrentTime();
 
@@ -281,6 +286,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	if (cpu_telemetry != NULL) {
 		cpu_telemetry->CSCTime = static_cast<double>(CSCTimeCPU.getMicroseconds());
 		cpu_telemetry->CDSTime = static_cast<double>(CDSTimeCPU.getMicroseconds());
+		cpu_telemetry->levelShiftTime = static_cast<double>(levelShiftingCPU.getMicroseconds());
 		cpu_telemetry->DCTTime = static_cast<double>(DCTTimeCPU.getMicroseconds());
 		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
 		cpu_telemetry->zigZagTime = static_cast<double>(ZigZagTimeCPU.getMicroseconds());
@@ -454,6 +460,41 @@ int main(int argc, char** argv) {
 	switchVectorChannelOrdering(h_largeoutput, h_img_test, newWidth, newHeight);
 	writeVectorToFile("../data/fruit_gpu_subsampling_output.ppm", newWidth, newHeight, h_img_test);
 
+	// Level shift the chroma channels by 128
+	std::vector<float> hDCTinput (h_largeoutput.begin(), h_largeoutput.end());
+	std::vector<float> hDCTintermediate (count);
+
+	// create buffers for DCT and level shifting
+	cl::Buffer dDCTinput = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (float));
+	cl::Buffer dDCTintermediate = cl::Buffer(context, CL_MEM_READ_WRITE, size * sizeof (float));
+
+	// write DCT input data to device
+	queue.enqueueWriteBuffer(dDCTinput, true, 0, count * sizeof (float), hDCTinput.data(), NULL, NULL);
+
+	cl::Event LevelShiftEvent;
+	// create a kernel object for level shifting
+	cl::Kernel LevelShiftKernel(program, "LevelShiftKernel");
+	LevelShiftKernel.setArg<cl::Buffer>(0, dDCTinput);
+	LevelShiftKernel.setArg<cl::Buffer>(1, dDCTintermediate);
+	LevelShiftKernel.setArg<cl_uint>(2, (cl_uint)newWidth);
+	LevelShiftKernel.setArg<cl_uint>(3, (cl_uint)newHeight);
+
+	// Launch kernel on the compute device
+	queue.enqueueNDRangeKernel(LevelShiftKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &LevelShiftEvent);
+
+	// Copy output data back to host
+	queue.enqueueReadBuffer(dDCTintermediate, true, 0, count * sizeof (float), hDCTintermediate.data(), NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// Print performance data
+	Core::TimeSpan LevelShiftTimeGPU = OpenCL::getElapsedTime(LevelShiftEvent);
+	std::cout << "Level shift time (GPU): " << LevelShiftTimeGPU.toString() << std::endl;
+
+	// preview the image after level shifting
+	previewImageLinearD(hDCTintermediate, newWidth, newHeight, 248, 0, 8, 8, "After LevelShiftKernel():");
+
 	// previewImageLinear(h_outputGpu, imgCPU.width, imgCPU.height, 248, 0, 8, 8, "After chromaSubsamplingKernel():");
 	// print the first 4 chroma pixels
 	// std::cout << "First 4 chroma subsampled pixels:" << std::endl;
@@ -604,6 +645,7 @@ int main(int argc, char** argv) {
 	std::cout << "\n## Speedups: ##" << std::endl;
 	std::cout << "Color conversion: " << (cpu_telemetry.CSCTime / static_cast<double>(colorConversionTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "Chroma subsampling: " << (cpu_telemetry.CDSTime / static_cast<double>(chromaSubsamplingTimeGPU.getMicroseconds())) << std::endl;
+	std::cout << "Level shifting: " << (cpu_telemetry.levelShiftTime / static_cast<double>(LevelShiftTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "ZigZag: " << (cpu_telemetry.zigZagTime / static_cast<double>(zigzagTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "RLE: " << (cpu_telemetry.RLETime / static_cast<double>(rleTimeGPU.getMicroseconds())) << std::endl;
 
