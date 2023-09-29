@@ -557,45 +557,49 @@ const std::string valueToBitString(const int16_t value) {
     return bitStr;
 }
 
+std::string HuffmanEncoder(int zigzag_array[][64], 
+					std::vector<std::vector<int>>& rle_vector,
+					int numRowsPerChannel) {
 
-void encoder(int zigzag_array[][64], int dc_components[], char channel, std::vector<std::vector<int>>& rle_vector, int numRowsPerChannel) {
-	// Take the difference between the first element of two consecutive MCU blocks and store the difference in the first element of the second MCU block
-	int lastVal = 0;
+	std::string m_scandata = "";
+	int dc_components[numRowsPerChannel][3];
+
+	// Take the difference between the first element of two consecutive MCU blocks 
+	// and store the difference in the first element of the second MCU block
+	int lastVal[3] = {0, 0, 0};
 	// For DC coefficient
 	for (size_t i = 0; i < numRowsPerChannel; ++i) {
-		dc_components[i] = zigzag_array[i][0] - lastVal;
-		lastVal = zigzag_array[i][0];
+		for (size_t chan = 0; chan < 3; ++chan) {
+			dc_components[i][chan] = zigzag_array[i + (numRowsPerChannel * chan)][0] - lastVal[chan];
+			lastVal[chan] = zigzag_array[i + (numRowsPerChannel * chan)][0];
 
-		auto category = getValueCategory( dc_components[i]);
-		auto bitString = valueToBitString( dc_components[i]);
-		
-		if (channel=='y') {
-			auto m_scandata = DC_LUMA_HUFF_CODES[category] + bitString;
-		} else if (channel=='cb' || channel=='cr') {
-			auto m_scandata = DC_CHROMA_HUFF_CODES[category] + bitString;
-		} else{
-			std::cout<<"Invalid channel"<<std::endl;
-		}
-	}					
+			auto category = getValueCategory(dc_components[i][chan]);
+			auto bitString = valueToBitString(dc_components[i][chan]);
 
-	// For AC coefficients
-
-	for (size_t i = 0; i < numRowsPerChannel; i++) {
-		for (size_t j = 0; j< rle_vector[i].size(); j+=2) {
-			auto zero_run = rle_vector[i][j];
-			auto value = rle_vector[i][j+1];
-			auto category = getValueCategory(value);
-            auto bitString = valueToBitString( value );
-
-			if (channel=='y') {
-				auto m_scandata = AC_LUMA_HUFF_CODES[zero_run][category] + bitString;
-			} else if (channel=='cb' || channel=='cr') {
-				auto m_scandata = AC_CHROMA_HUFF_CODES[zero_run][category] + bitString;
+			if (chan == 0) {
+				m_scandata += DC_LUMA_HUFF_CODES[category] + bitString;
 			} else {
-				std::cout<<"Invalid channel"<<std::endl;
-			}		
+				m_scandata += DC_CHROMA_HUFF_CODES[category] + bitString;
+			}
 		}
-	}
+
+		// For AC coefficients
+		for (size_t chan = 0; chan < 3; ++chan) {
+			for (size_t j = 0; j < rle_vector[i + (numRowsPerChannel * chan)].size(); j+=2) {
+				auto zero_run = rle_vector[i + (numRowsPerChannel * chan)][j];
+				auto value = rle_vector[i + (numRowsPerChannel * chan)][j+1];
+				auto category = getValueCategory(value);
+				auto bitString = valueToBitString( value );
+
+				if (chan == 0) {
+					m_scandata += AC_LUMA_HUFF_CODES[zero_run][category] + bitString;
+				} else {
+					m_scandata += AC_CHROMA_HUFF_CODES[zero_run][category] + bitString;
+				}
+			}
+		}
+	}		
+	return m_scandata;			
 }
 
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {

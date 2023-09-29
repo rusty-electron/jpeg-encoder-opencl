@@ -226,55 +226,66 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// std::cout<<std::endl;
 
 	// Seperate channels
-	int zigzag_y[rowsperchannel][64];
-	int zigzag_cb[rowsperchannel][64];
-	int zigzag_cr[rowsperchannel][64];
+	// int zigzag_y[rowsperchannel][64];
+	// int zigzag_cb[rowsperchannel][64];
+	// int zigzag_cr[rowsperchannel][64];
 
-	seperateChannels(zigzag_arr, zigzag_y, zigzag_cb, zigzag_cr, rowsperchannel);
+	// seperateChannels(zigzag_arr, zigzag_y, zigzag_cb, zigzag_cr, rowsperchannel);
 	
 	// print the first row of the zigzag_y array
-	std::cout << "First row of the zigzag_y array:" << std::endl;
-	for (int i = 0; i < 64; i++) {
-		std::cout << zigzag_y[0][i] << " ";
-	}
-	std::cout<<std::endl;
+	// std::cout << "First row of the zigzag_y array:" << std::endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	std::cout << zigzag_y[0][i] << " ";
+	// }
+	// std::cout<<std::endl;
 
 	// 2D vector to store the rle values
-	std::vector<std::vector<int>> y_rle;
-	std::vector<std::vector<int>> cb_rle;
-	std::vector<std::vector<int>> cr_rle;
+	// std::vector<std::vector<int>> y_rle;
+	// std::vector<std::vector<int>> cb_rle;
+	// std::vector<std::vector<int>> cr_rle;
 
+	// 2D vector to store the rle values for all channels
+	std::vector<std::vector<int>> rle;
 	
 	startTime = Core::getCurrentTime();
 	// For y channel
-	performRLE(zigzag_y, y_rle, rowsperchannel);
-	// For cb channel
-	performRLE(zigzag_cb, cb_rle, rowsperchannel);
-	// For cr channel
-	performRLE(zigzag_cr, cr_rle, rowsperchannel);
+	// performRLE(zigzag_y, y_rle, rowsperchannel);
+	// // For cb channel
+	// performRLE(zigzag_cb, cb_rle, rowsperchannel);
+	// // For cr channel
+	// performRLE(zigzag_cr, cr_rle, rowsperchannel);
+
+	// for all channels
+	performRLE(zigzag_arr, rle, rows);
 	endTime = Core::getCurrentTime();
 
 	Core::TimeSpan RLETimeCPU = endTime - startTime;
 	std::cout << "RLE Time CPU: " << RLETimeCPU.toString() << std::endl;
 
-	// Print first row of y RLE
-	std::cout << "First row of the y RLE:" << std::endl;
-	for (int i = 0; i < y_rle[0].size(); i+=2) {
-		std::cout << "(" << y_rle[0][i] << ", " << y_rle[0][i+1] << ") ";
+	// huffman encoding
+	startTime = Core::getCurrentTime();
+	std::string scanData = HuffmanEncoder(zigzag_arr, rle, rowsperchannel);
+	endTime = Core::getCurrentTime();
+
+	Core::TimeSpan HuffmanTimeCPU = endTime - startTime;
+	std::cout << "Huffman Time CPU: " << HuffmanTimeCPU.toString() << std::endl;
+
+	// print the first 100 characters of the scan data
+	std::cout << "First 100 characters of the scan data:" << std::endl;
+	for (int i = 0; i < 100; i++) {
+		std::cout << scanData[i];
 	}
-
-	// 
-
+	std::cout<<std::endl;
 
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
 		cpu_telemetry->CSCTime = static_cast<double>(CSCTimeCPU.getMicroseconds());
 		cpu_telemetry->CDSTime = static_cast<double>(CDSTimeCPU.getMicroseconds());
 		cpu_telemetry->DCTTime = static_cast<double>(DCTTimeCPU.getMicroseconds());
-		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
 		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
 		cpu_telemetry->zigZagTime = static_cast<double>(ZigZagTimeCPU.getMicroseconds());
 		cpu_telemetry->RLETime = static_cast<double>(RLETimeCPU.getMicroseconds());
+		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
 	}
 
 	// print total time

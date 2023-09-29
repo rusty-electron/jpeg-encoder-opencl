@@ -127,4 +127,7 @@ void seperateChannels(int [][64], int [][64], int [][64], int [][64], int);
 void RLEBlockAC(int [], std::vector<int> ,int); 
 void performRLE(int [][64], std::vector<std::vector<int>>&,int);
 
+const int16_t getValueCategory(const int16_t);
+const std::string valueToBitString(const int16_t);
 
+std::string HuffmanEncoder(int [][64], std::vector<std::vector<int>>&, int);
