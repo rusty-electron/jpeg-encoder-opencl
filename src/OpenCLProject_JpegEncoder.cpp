@@ -282,6 +282,9 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	}
 	std::cout<<std::endl;
 
+	// write the JFIF file
+	writeJFIFFile("../data/fruit.jfif", imgCPU_d.width, imgCPU_ds.height, scanData);
+
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
 		cpu_telemetry->CSCTime = static_cast<double>(CSCTimeCPU.getMicroseconds());
