@@ -1,7 +1,7 @@
 <h1 align="center">JPEG Encoder</h1>
 <p align="center"><i> A JPEG Encoder implementation with OpenCL.</i></p>
 
-**Authors**: Manpa Barman , Pritom Gogoi, Shoumik Dey (*The authors are alphabetically ordered.*)
+**Authors**: Manpa Barman, Pritom Gogoi, Shoumik Dey (*The authors are alphabetically ordered.*)
 
 **Course:** *High Performance Programming with Graphic Cards*
 
@@ -22,12 +22,11 @@ A Joint Photographic Experts Group (JPEG) encoder is a crucial component in digi
 | Path | Description |
 | --- | --- |
 | `src` | Contains the source code of the project. |
-| `src/utils.hpp` | Contains the header files of the utility Functions. |
+| `src/utils.hpp` | Header file for utility.cpp . |
 | `lib` | Contains the library files of the project. |
 | `lib/utils.cpp` | Contains the implementation of the utility Functions. |
 | `lib/huffman.hpp` | Contains the huffman tables according to the JPEG standard. |
-| `lib/quantization.hpp` | Contains the quantization tables according to the JPEG standard. |
-| `lib/OpenCLProject_JpegEncoder.cpp` | Contains the main function of the project for excecuting both the CPU and GPU implementations. |
+| `lib/OpenCLProject_JpegEncoder.cpp` | Contains the main function of the project for executing both the CPU and GPU implementations. |
 | `lib/OpenCLProject_JpegEncoder.cl` | Contains the OpenCL kernels for the GPU implementation. |
 
 ## Running the code
@@ -40,7 +39,6 @@ A Joint Photographic Experts Group (JPEG) encoder is a crucial component in digi
    `cmake ..`
 4. Compile the code with make command:
    `make` 
-5. Run the executable file which will be named by the project name which you have
-   written in CMakeLists.txt
-   For example: ./jpeg-encoder-opencl in this project.
+5. Run the executable file : 
+   For example: `./jpeg-encoder-opencl` in this project.
 
