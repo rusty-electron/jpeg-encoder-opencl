@@ -20,7 +20,6 @@
 #include <iomanip>
 
 #include "utils.hpp"
-#include "markers.hpp"
 
 //////////////////////////////////////////////////////////////////////////////
 // CPU implementation
@@ -185,7 +184,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	std::cout << "Level Shifting Time CPU: " << levelShiftingCPU.toString() << std::endl;
 
 	startTime = Core::getCurrentTime();
-	performDCT2(&imgCPU_d);
+	performDCT(&imgCPU_d);
 	endTime = Core::getCurrentTime();
 
 	Core::TimeSpan DCTTimeCPU = endTime - startTime;
@@ -288,9 +287,6 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	}
 	std::cout<<std::endl;
 
-	// write the JFIF file
-	saveToJFIFFile("../data/fruit.jfif", imgCPU_d.width, imgCPU_d.height, scanData);
-
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
 		cpu_telemetry->CSCTime = static_cast<double>(CSCTimeCPU.getMicroseconds());
@@ -300,11 +296,12 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 		cpu_telemetry->QuantTime = static_cast<double>(QuantTimeCPU.getMicroseconds());
 		cpu_telemetry->zigZagTime = static_cast<double>(ZigZagTimeCPU.getMicroseconds());
 		cpu_telemetry->RLETime = static_cast<double>(RLETimeCPU.getMicroseconds());
+		cpu_telemetry->HuffmanTime = static_cast<double>(HuffmanTimeCPU.getMicroseconds());
 		cpu_telemetry->TotalCopyTime = static_cast<double>(TotalCopyTimeCPU.getMicroseconds());
 	}
 
 	// print total time
-	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + DCTTimeCPU + QuantTimeCPU + ZigZagTimeCPU + RLETimeCPU).toString() << std::endl;
+	std::cout << "Total Time CPU: " << (CSCTimeCPU + CDSTimeCPU + TotalCopyTimeCPU + levelShiftingCPU + DCTTimeCPU + QuantTimeCPU + ZigZagTimeCPU + RLETimeCPU + HuffmanTimeCPU).toString() << std::endl;
 
 	return 0;
 }
@@ -502,7 +499,7 @@ int main(int argc, char** argv) {
 	std::cout << "Level shift time (GPU): " << LevelShiftTimeGPU.toString() << std::endl;
 
 	// preview the image after level shifting
-	// previewImageLinearD(hDCTintermediate, newWidth, newHeight, 248, 0, 8, 8, "After LevelShiftKernel():");
+	previewImageLinearD(hDCTintermediate, newWidth, newHeight, 0, 0, 8, 8, "After LevelShiftKernel():");
 
 	// perform DCT on the image
 	std::vector<float> hDCToutput (count);
@@ -546,7 +543,7 @@ int main(int argc, char** argv) {
 	// std::cout << "Cr4 " << (int)h_outputGpu[imgCPU.width * imgCPU.height + imgCPU.width + 1] << std::endl;
 
 	// create a vector of type *float* to store newInput data
-	std::vector<float> h_newinput (h_outputGpu.begin(), h_outputGpu.end());
+	std::vector<float> h_newinput (hDCToutput.begin(), hDCToutput.end());
 	// create a vector to store newOutput data
 	std::vector<int> h_newoutput (size);
 	// create a vector a fill it with quantization matrix for luminance
@@ -688,6 +685,7 @@ int main(int argc, char** argv) {
 	std::cout << "Color conversion: " << (cpu_telemetry.CSCTime / static_cast<double>(colorConversionTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "Chroma subsampling: " << (cpu_telemetry.CDSTime / static_cast<double>(chromaSubsamplingTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "Level shifting: " << (cpu_telemetry.levelShiftTime / static_cast<double>(LevelShiftTimeGPU.getMicroseconds())) << std::endl;
+	std::cout << "DCT: " << (cpu_telemetry.DCTTime / static_cast<double>(DCTTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "ZigZag: " << (cpu_telemetry.zigZagTime / static_cast<double>(zigzagTimeGPU.getMicroseconds())) << std::endl;
 	std::cout << "RLE: " << (cpu_telemetry.RLETime / static_cast<double>(rleTimeGPU.getMicroseconds())) << std::endl;
 

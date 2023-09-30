@@ -111,15 +111,15 @@ void performCDS(ppm_t *img) {
 	 * Input: YCbCr struct
 	 * Output: Downsampling Cb and Cr channels (used 2x2 average)
 	*/
-	for (size_t y = 0; y < img->height; y += 2) {
-		for (size_t x = 0; x < img->width; x += 2) {
+	for (size_t y = 0; y < img->height - 1; y += 2) {
+		for (size_t x = 0; x < img->width - 1; x += 2) {
 			rgb_pixel_t *pixel1 = getPixelPtr(img, x, y);
 			rgb_pixel_t *pixel2 = getPixelPtr(img, x + 1, y);
 			rgb_pixel_t *pixel3 = getPixelPtr(img, x, y + 1);
 			rgb_pixel_t *pixel4 = getPixelPtr(img, x + 1, y + 1);
 
-			uint8_t avgCb = (pixel1->g + pixel2->g + pixel3->g + pixel4->g) / 4.0;
-			uint8_t avgCr = (pixel1->b + pixel2->b + pixel3->b + pixel4->b) / 4.0;
+			uint8_t avgCb = (uint8_t)((pixel1->g + pixel2->g + pixel3->g + pixel4->g) / 4.0);
+			uint8_t avgCr = (uint8_t)((pixel1->b + pixel2->b + pixel3->b + pixel4->b) / 4.0);
 
 			pixel1->g = avgCb;
 			pixel2->g = avgCb;
@@ -261,24 +261,24 @@ void performDCT2(ppm_d_t *img) {
 			float sumG = 0.0;
 			float sumB = 0.0;
 
-			size_t startX = (x / 8) * 8;
-			size_t startY = (y / 8) * 8;
+			int startX = (x / 8) * 8;
+			int startY = (y / 8) * 8;
 
-			for (int y = 0; y < 8; ++y) {
-				for (int x = 0; x < 8; ++x) {
-					float cosX = std::cos((2 * x + 1) * idx_within_block_x * M_PI / 16.0);
-					float cosY = std::cos((2 * y + 1) * idx_within_block_y * M_PI / 16.0);
+			for (int m = 0; m < 8; m++) {
+				for (int n = 0; n < 8; n++) {
+					float cosX = std::cos((2 * m + 1) * idx_within_block_x * M_PI / 16.0);
+					float cosY = std::cos((2 * n + 1) * idx_within_block_y * M_PI / 16.0);
 
-					rgb_pixel_d_t pixel = img->data[(startY + y) * img->width + (startX + x)];
+					rgb_pixel_d_t pixel = img->data[(startY + n) * img->width + (startX + m)];
 					sumR += (float)pixel.r * cosX * cosY;
 					sumG += (float)pixel.g * cosX * cosY;
 					sumB += (float)pixel.b * cosX * cosY;
 				}
 			}
 
-			sumR *= (alphaU * alphaV / 4.0);
-			sumG *= (alphaU * alphaV / 4.0);
-			sumB *= (alphaU * alphaV / 4.0);
+			sumR *= (alphaU * alphaV * 0.25);
+			sumG *= (alphaU * alphaV * 0.25);
+			sumB *= (alphaU * alphaV * 0.25);
 
 			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
 			pixel->r = sumR;
@@ -418,7 +418,7 @@ void previewImageLinearD(std::vector<float>& v, const unsigned int width, const 
 			val2 = v[idx + width * height];
 			val3 = v[idx + width * height * 2];
 			// provide three spaces for each pixel
-			std::cout << "(" << std::setw(3) << (int)val1 << ", " << std::setw(3) << (int)val2 << ", " << std::setw(3) << (int)val3 << ")   ";
+			printf("(%6.2f, %6.2f, %6.2f)   ", val1, val2, val3);
 		}
 		std::cout << std::endl;
 	}
@@ -631,6 +631,7 @@ std::string HuffmanEncoder(int zigzag_array[][64],
 	// For DC coefficient
 	for (size_t i = 0; i < numRowsPerChannel; ++i) {
 		for (size_t chan = 0; chan < 3; ++chan) {
+			// Encode the DC coefficients
 			dc_components[i][chan] = zigzag_array[i + (numRowsPerChannel * chan)][0] - lastVal[chan];
 			lastVal[chan] = zigzag_array[i + (numRowsPerChannel * chan)][0];
 
@@ -642,10 +643,8 @@ std::string HuffmanEncoder(int zigzag_array[][64],
 			} else {
 				m_scandata += DC_CHROMA_HUFF_CODES[category] + bitString;
 			}
-		}
 
-		// For AC coefficients
-		for (size_t chan = 0; chan < 3; ++chan) {
+			// Encode the AC coefficients
 			for (size_t j = 0; j < rle_vector[i + (numRowsPerChannel * chan)].size(); j+=2) {
 				auto zero_run = rle_vector[i + (numRowsPerChannel * chan)][j];
 				auto value = rle_vector[i + (numRowsPerChannel * chan)][j+1];
@@ -680,7 +679,6 @@ void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector 
 			vOutput[y * newWidth + x + newWidth * newHeight * 2] = vInput[y * oldWidth + x + oldWidth * oldHeight * 2];
 		}
 	}
-		
 
 	// add padding to the right
 	for (size_t y = 0; y < oldHeight; ++y) {
