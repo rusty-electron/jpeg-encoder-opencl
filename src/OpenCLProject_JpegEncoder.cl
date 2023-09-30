@@ -98,6 +98,51 @@ __kernel void LevelShiftKernel(__global float* d_input, __global float* d_output
     d_output[2 * width * height + pixel_index] = d_input[2 * width * height + pixel_index] - 128;
 }
 
+__kernel void DCTKernel(__global float* d_input, __global float* d_output, const unsigned int width, const unsigned int height) {
+    size_t i = get_global_id(0);
+    size_t j = get_global_id(1);
+
+    size_t countX = get_global_size(0);
+    size_t countY = get_global_size(1);
+
+    if (i >= width || j >= height) {
+        return;
+    }
+
+    float alphaU = (i % 8 == 0) ? 1.0f / sqrt(2.0f) : 1.0f;
+    float alphaV = (j % 8 == 0) ? 1.0f / sqrt(2.0f) : 1.0f;
+
+    float sumY = 0.0f;
+    float sumCb = 0.0f;
+    float sumCr = 0.0f;
+
+    int startX = (i / 8) * 8;
+    int startY = (j / 8) * 8;
+
+    int u = i % 8;
+    int v = j % 8;
+
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+
+            float cosX = cos((2 * x + 1) * u * M_PI / 16.0f);
+            float cosY = cos((2 * y + 1) * v * M_PI / 16.0f);
+
+            sumY += d_input[(startY + y) * width + startX + x] * cosX * cosY;
+            sumCb += d_input[(startY + y) * width + startX + x + width * height] * cosX * cosY;
+            sumCr += d_input[(startY + y) * width + startX + x + 2 * width * height] * cosX * cosY;
+        }
+    }
+
+    sumY *= 0.25f * alphaU * alphaV;
+    sumCb *= 0.25f * alphaU * alphaV;
+    sumCr *= 0.25f * alphaU * alphaV;
+
+    d_output[j * width + i] = sumY;
+    d_output[width * height + j * width + i] = sumCb;
+    d_output[2 * width * height + j * width + i] = sumCr;
+}
+
 __kernel void quantizationKernel(__global float* d_input, __global int* d_output, __global uint* quant_lum, __global uint* quant_chrom, const unsigned int width, const unsigned int height) {
     size_t i = get_global_id(0);
     size_t j = get_global_id(1);

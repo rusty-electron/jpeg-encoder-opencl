@@ -20,11 +20,11 @@
 #include <iomanip>
 
 #include "utils.hpp"
+#include "markers.hpp"
 
 //////////////////////////////////////////////////////////////////////////////
 // CPU implementation
 //////////////////////////////////////////////////////////////////////////////
-
 
 //function for test only
 void writePPM(FILE *file, uint8_t *header, uint8_t *image, int size){
@@ -178,15 +178,21 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	substractfromAll(&imgCPU_d, 128.0);
 	endTime = Core::getCurrentTime();
 
+	std::cout << "First 8x8 block of the image after level shifting:" << std::endl;
+	previewImageD(&imgCPU_d, 0, 0, 8, 8);
+
 	Core::TimeSpan levelShiftingCPU = endTime - startTime;
 	std::cout << "Level Shifting Time CPU: " << levelShiftingCPU.toString() << std::endl;
 
 	startTime = Core::getCurrentTime();
-	performDCT(&imgCPU_d);
+	performDCT2(&imgCPU_d);
 	endTime = Core::getCurrentTime();
 
 	Core::TimeSpan DCTTimeCPU = endTime - startTime;
 	std::cout << "DCT Time CPU: " << DCTTimeCPU.toString() << std::endl;
+
+	std::cout << "First 8x8 block of the image after DCT:" << std::endl;
+	previewImageD(&imgCPU_d, 0, 0, 8, 8);
 
 	startTime = Core::getCurrentTime();
 	performQuantization(&imgCPU_d, quant_mat_lum, quant_mat_chrom);
@@ -283,7 +289,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	std::cout<<std::endl;
 
 	// write the JFIF file
-	writeJFIFFile("../data/fruit.jfif", imgCPU_d.width, imgCPU_ds.height, scanData);
+	saveToJFIFFile("../data/fruit.jfif", imgCPU_d.width, imgCPU_d.height, scanData);
 
 	// copy telemetry data to the structure
 	if (cpu_telemetry != NULL) {
@@ -346,7 +352,7 @@ int main(int argc, char** argv) {
 	std::size_t wgSizeY = 16; // Number of work items per work group in Y direction
 	std::size_t countX = wgSizeX * 16; // Overall number of work items in X direction = Number of elements in X direction
 	std::size_t countY = wgSizeY * 16;
-	countX *= 3; countY *= 3; // image channels
+	countX *= 3; // image channels
 	std::size_t count = countX * countY; // Overall number of elements
 	std::size_t size = count * sizeof (cl_uint); // Size of data in bytes
 
@@ -496,7 +502,40 @@ int main(int argc, char** argv) {
 	std::cout << "Level shift time (GPU): " << LevelShiftTimeGPU.toString() << std::endl;
 
 	// preview the image after level shifting
-	previewImageLinearD(hDCTintermediate, newWidth, newHeight, 248, 0, 8, 8, "After LevelShiftKernel():");
+	// previewImageLinearD(hDCTintermediate, newWidth, newHeight, 248, 0, 8, 8, "After LevelShiftKernel():");
+
+	// perform DCT on the image
+	std::vector<float> hDCToutput (count);
+
+	// creat buffer for DCT output
+	cl::Buffer dDCToutput = cl::Buffer(context, CL_MEM_READ_WRITE, count * sizeof (float));
+
+	// copy DCT intermediate data to device (this will serve as input for DCT)
+	queue.enqueueWriteBuffer(dDCTintermediate, true, 0, count * sizeof (float), hDCTintermediate.data(), NULL, NULL);
+
+	cl::Event DCTEvent;
+	// create a kernel object for DCT
+	cl::Kernel DCTKernel(program, "DCTKernel");
+	DCTKernel.setArg<cl::Buffer>(0, dDCTintermediate);
+	DCTKernel.setArg<cl::Buffer>(1, dDCToutput);
+	DCTKernel.setArg<cl_uint>(2, (cl_uint)newWidth);
+	DCTKernel.setArg<cl_uint>(3, (cl_uint)newHeight);
+
+	// Launch kernel on the compute device
+	queue.enqueueNDRangeKernel(DCTKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &DCTEvent);
+
+	// Copy output data back to host
+	queue.enqueueReadBuffer(dDCToutput, true, 0, count * sizeof (float), hDCToutput.data(), NULL, NULL);
+
+	// Wait for all commands to complete
+	queue.finish();
+
+	// Print performance data
+	Core::TimeSpan DCTTimeGPU = OpenCL::getElapsedTime(DCTEvent);
+	std::cout << "DCT time (GPU): " << DCTTimeGPU.toString() << std::endl;
+
+	// preview the image after DCT
+	previewImageLinearD(hDCToutput, newWidth, newHeight, 0, 0, 8, 8, "After DCTKernel():");
 
 	// previewImageLinear(h_outputGpu, imgCPU.width, imgCPU.height, 248, 0, 8, 8, "After chromaSubsamplingKernel():");
 	// print the first 4 chroma pixels

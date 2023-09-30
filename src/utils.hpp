@@ -100,6 +100,7 @@ void substractfromAll(ppm_d_t *, double);
 
 void performDCT(ppm_d_t *);
 void performDCTBlock(ppm_d_t *, size_t, size_t);
+void performDCT2(ppm_d_t *);
 
 void performQuantization(ppm_d_t *, const unsigned int[][8], const unsigned int[][8]);
 

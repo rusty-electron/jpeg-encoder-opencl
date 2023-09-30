@@ -248,32 +248,71 @@ void performDCT(ppm_d_t *img) {
 	}
 }
 
-void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
-	// perform DCT on each channel
-	for (size_t u = 0; u < 8; ++u) {
-		for (size_t v = 0; v < 8; ++v) {
-			double alphaU = (u == 0) ? 1.0 : 1.0 / std::sqrt(2);
-			double alphaV = (v == 0) ? 1.0 : 1.0 / std::sqrt(2);
+void performDCT2(ppm_d_t *img) {
+	for (size_t y = 0; y < img->height; ++y) {
+		for (size_t x = 0; x < img->width; ++x) {
+			size_t idx_within_block_x = x % 8;
+			size_t idx_within_block_y = y % 8;
 
-			double sumR = 0.0;
-			double sumG = 0.0;
-			double sumB = 0.0;
+			float alphaU = (idx_within_block_x == 0) ? 1.0 / std::sqrt(2) : 1.0;
+			float alphaV = (idx_within_block_y == 0) ? 1.0 / std::sqrt(2) : 1.0;
 
-			for (size_t y = startY; y < startY + 8; ++y) {
-				for (size_t x = startX; x < startX + 8; ++x) {
-					rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
-					sumR += pixel->r * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
-					sumG += pixel->g * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
-					sumB += pixel->b * std::cos((2 * x + 1) * u * M_PI / 16.0) * std::cos((2 * y + 1) * v * M_PI / 16.0);
+			float sumR = 0.0;
+			float sumG = 0.0;
+			float sumB = 0.0;
+
+			size_t startX = (x / 8) * 8;
+			size_t startY = (y / 8) * 8;
+
+			for (int y = 0; y < 8; ++y) {
+				for (int x = 0; x < 8; ++x) {
+					float cosX = std::cos((2 * x + 1) * idx_within_block_x * M_PI / 16.0);
+					float cosY = std::cos((2 * y + 1) * idx_within_block_y * M_PI / 16.0);
+
+					rgb_pixel_d_t pixel = img->data[(startY + y) * img->width + (startX + x)];
+					sumR += (float)pixel.r * cosX * cosY;
+					sumG += (float)pixel.g * cosX * cosY;
+					sumB += (float)pixel.b * cosX * cosY;
 				}
 			}
 
 			sumR *= (alphaU * alphaV / 4.0);
 			sumG *= (alphaU * alphaV / 4.0);
 			sumB *= (alphaU * alphaV / 4.0);
-			// sumR *= 1/4.0;
-			// sumG *= 1/4.0;
-			// sumB *= 1/4.0;
+
+			rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+			pixel->r = sumR;
+			pixel->g = sumG;
+			pixel->b = sumB;
+		}
+	}
+}
+
+void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
+	// perform DCT on each channel
+	for (size_t u = 0; u < 8; ++u) {
+		for (size_t v = 0; v < 8; ++v) {
+			double alphaU = (u == 0) ? 1.0 / std::sqrt(2) : 1.0;
+			double alphaV = (v == 0) ? 1.0 / std::sqrt(2) : 1.0;
+
+			double sumR = 0.0;
+			double sumG = 0.0;
+			double sumB = 0.0;
+
+			for (size_t y = startY; y < startY + 8; ++y) {
+				size_t eff_y = y - startY;
+				for (size_t x = startX; x < startX + 8; ++x) {
+					rgb_pixel_d_t *pixel = &img->data[y * img->width + x];
+					size_t eff_x = x - startX;
+					sumR += pixel->r * std::cos((2 * eff_x + 1) * u * M_PI / 16.0) * std::cos((2 * eff_y + 1) * v * M_PI / 16.0);
+					sumG += pixel->g * std::cos((2 * eff_x + 1) * u * M_PI / 16.0) * std::cos((2 * eff_y + 1) * v * M_PI / 16.0);
+					sumB += pixel->b * std::cos((2 * eff_x + 1) * u * M_PI / 16.0) * std::cos((2 * eff_y + 1) * v * M_PI / 16.0);
+				}
+			}
+
+			sumR *= (alphaU * alphaV / 4.0);
+			sumG *= (alphaU * alphaV / 4.0);
+			sumB *= (alphaU * alphaV / 4.0);
 
 			int x_val = startX + u;
 			int y_val = startY + v;
@@ -371,7 +410,7 @@ void previewImageLinearD(std::vector<float>& v, const unsigned int width, const 
 
 	std::cout << "Previewing pixels from (" << startX << ", " << startY << ") to (" << startX + lengthX - 1 << ", " << startY + lengthY - 1 << "):" << std::endl;
 	size_t idx;
-	double val1, val2, val3;
+	float val1, val2, val3;
 	for (size_t y = startY; y < startY + lengthY; ++y) {
 		for (size_t x = startX; x < startX + lengthX; ++x) {
 			idx = y * width + x;
@@ -510,6 +549,7 @@ void RLEBlockAC(int zigzag_array[], std::vector<int>& rle_vector) {
 			break;
 		}
 	}
+
     // RLE for the AC components
     for (int i = 1; i <= lastNonZeroIndex; i++) {
         // Count the number of zeros before each element

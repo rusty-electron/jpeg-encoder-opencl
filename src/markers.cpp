@@ -1,19 +1,17 @@
-#include <arpa/inet.h> // htons
+#include <arpa/inet.h>
 #include <iostream>
 #include <cmath>
 #include <bitset>
 #include <fstream>
+
+#include <OpenCL/cl-patched.hpp>
 
 #include "huffman.hpp"
 #include "markers.hpp"
 #include "quantization.hpp"
 #include "utils.hpp"
 
-ppm_t m_image;
-
-
-bool saveToJFIFFile( const std::string& filename, size_t width, size_t height, std::string m_scanData )
-{
+bool saveToJFIFFile(const std::string& filename, size_t width, size_t height, std::string m_scanData) {
     std::ofstream m_outputJPEG( filename, std::ios::out | std::ios::binary );
     
     if ( !m_outputJPEG.is_open() || !m_outputJPEG.good() )
@@ -40,7 +38,6 @@ bool saveToJFIFFile( const std::string& filename, size_t width, size_t height, s
     // Write the thumbnail width & height
     // We don't encode the thumbnail data
     m_outputJPEG << (uint8_t)0x00 << (uint8_t)0x00;
-    
     
     ////////////////////////////////////
     // Write the comment segment
@@ -128,8 +125,8 @@ bool saveToJFIFFile( const std::string& filename, size_t width, size_t height, s
     // Write image dimensions
     
     // Height
-    m_outputJPEG << (u_int8_t)( (uint8_t)( height >> 8 ) & (uint8_t)0xFF00 ); // the first 8 MSBs
-    m_outputJPEG << (u_int8_t)( (u_int8_t)height & (uint8_t)0x00FF ); // the next 8 LSBs
+    m_outputJPEG << (uint8_t)( (uint8_t)( height >> 8 ) & (uint8_t)0xFF00 ); // the first 8 MSBs
+    m_outputJPEG << (uint8_t)( (uint8_t)height & (uint8_t)0x00FF ); // the next 8 LSBs
     
     
     // Width
@@ -276,7 +273,7 @@ bool saveToJFIFFile( const std::string& filename, size_t width, size_t height, s
     m_outputJPEG << (uint8_t)0x03 << (uint8_t)0x11; // HT info for component #3
     m_outputJPEG << (uint8_t)0x00 << (uint8_t)0x3F << (uint8_t)0x00; // Skip bytes
     
-    for ( u_int64_t i = 0; i <= m_scanData.size() - 8; i += 8 )
+    for (uint64_t i = 0; i <= m_scanData.size() - 8; i += 8 )
     {
         std::bitset<8> word( m_scanData.substr( i, 8 ) );
         uint8_t w = (uint8_t)word.to_ulong();
