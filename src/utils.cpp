@@ -6,6 +6,8 @@
 #include "huffman.hpp"
 #include "utils.hpp"
 
+
+// Read the PPM image from file
 int readPPMImage(const char * file_path, size_t *width, size_t *height, rgb_pixel_t **imgptr) {
 	char line[128];
 	FILE *fp = fopen(file_path, "rb");
@@ -62,6 +64,7 @@ int readPPMImage(const char * file_path, size_t *width, size_t *height, rgb_pixe
 	return 0;
 }
 
+// Write the PPM image to file
 int writePPMImage(const char * file_path, size_t width, size_t height, rgb_pixel_t *imgptr) {
     FILE *fp = fopen(file_path, "wb");
 
@@ -78,12 +81,14 @@ int writePPMImage(const char * file_path, size_t width, size_t height, rgb_pixel
     return 0;
 }
 
+// Function to remove the red channel from the image - TEST FUNCTION
 void removeRedChannel(ppm_t *img) {
 	for (size_t i = 0; i < img->width * img->height; ++i) {
 		img->data[i].r = 0;
 	}
 }
 
+// Function to perform Color Space Conversion
 void performCSC(ppm_t *img) {
 	/* CSC = Color Space Conversion
 	 * Y = 0.299 * R + 0.587 * G + 0.114 * B
@@ -104,6 +109,7 @@ void performCSC(ppm_t *img) {
 	}
 }
 
+// Function to perform Color Downsampling
 void performCDS(ppm_t *img) {
 	/* CDS = Color Downsampling
 	 * Cb = (Cb1 + Cb2 + Cb3 + Cb4) / 4
@@ -134,43 +140,53 @@ void performCDS(ppm_t *img) {
 	}
 }
 
+// Function to extract pixels from the image
 rgb_pixel_t getPixel(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x];
 }
 
+// Function to extract pixel pointer from the image
 rgb_pixel_t* getPixelPtr(ppm_t *img, size_t x, size_t y) {
 	return &img->data[y * img->width + x];
 }
 
+// Extract pixel R value
 uint8_t getPixelR(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x].r; // img->height
 }
 
+// Extract pixel G value
 uint8_t getPixelG(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x].g;
 }
 
+// Extract pixel B value
 uint8_t getPixelB(ppm_t *img, size_t x, size_t y) {
 	return img->data[y * img->width + x].b;
 }
 
+// Set pixel R value
 void setPixelR(ppm_t *img, size_t x, size_t y, uint8_t val) {
 	img->data[y * img->width + x].r = val;
 }
 
+// Set pixel G value
 void setPixelG(ppm_t *img, size_t x, size_t y, uint8_t val) {
 	img->data[y * img->width + x].g = val;
 }
 
+// Set pixel B value
 void setPixelB(ppm_t *img, size_t x, size_t y, uint8_t val) {
 	img->data[y * img->width + x].b = val;
 }
 
+// Function to get the nearest 8x8 image size for padding
 void getNearest8x8ImageSize(size_t width, size_t height, size_t *newWidth, size_t *newHeight) {
 	*newWidth = std::ceil(width / 8.0) * 8;
 	*newHeight = std::ceil(height / 8.0) * 8;
 }
 
+// Function for Level Shifting
 void substractfromAll(ppm_d_t *img, double val) {
 	for (size_t i = 0; i < img->width * img->height; ++i) {
 		img->data[i].r -= val;
@@ -179,6 +195,7 @@ void substractfromAll(ppm_d_t *img, double val) {
 	}
 }
 
+// Function to copy the image to a larger image
 void copyToLargerImage(ppm_t *img, ppm_t *newImg) {
 	for (size_t y = 0; y < img->height; ++y) {
 		for (size_t x = 0; x < img->width; ++x) {
@@ -190,6 +207,7 @@ void copyToLargerImage(ppm_t *img, ppm_t *newImg) {
 	}
 }
 
+// Function to add padding to the image
 void addReversedPadding(ppm_t *img, size_t oldWidth, size_t oldHeight) {
 	// add padding to the right
 	for (size_t y = 0; y < oldHeight; ++y) {
@@ -214,6 +232,7 @@ void addReversedPadding(ppm_t *img, size_t oldWidth, size_t oldHeight) {
 	}
 }
 
+// Function to convert the uint to double image
 void copyUIntToDoubleImage(ppm_t *img, ppm_d_t *newImg) {
 	for (size_t y = 0; y < img->height; ++y) {
 		for (size_t x = 0; x < img->width; ++x) {
@@ -226,6 +245,7 @@ void copyUIntToDoubleImage(ppm_t *img, ppm_d_t *newImg) {
 	}
 }
 
+// Function to convert the double to uint image
 void copyDoubleToUIntImage(ppm_d_t *img, ppm_t *newImg) {
 	for (size_t y = 0; y < img->height; ++y) {
 		for (size_t x = 0; x < img->width; ++x) {
@@ -238,6 +258,7 @@ void copyDoubleToUIntImage(ppm_d_t *img, ppm_t *newImg) {
 	}
 }
 
+// Function to perform DCT on the image (loop over all MCU's)
 void performDCT(ppm_d_t *img) {
 	// perform DCT on each 8x8 block
 	for (size_t y = 0; y < img->height; y += 8) {
@@ -248,6 +269,7 @@ void performDCT(ppm_d_t *img) {
 	}
 }
 
+// Function to perform DCT on the image (loop over all MCU's) - Alternate function
 void performDCT2(ppm_d_t *img) {
 	for (size_t y = 0; y < img->height; ++y) {
 		for (size_t x = 0; x < img->width; ++x) {
@@ -288,6 +310,7 @@ void performDCT2(ppm_d_t *img) {
 	}
 }
 
+// Function to perform DCT on a single 8x8 block (MCU)
 void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
 	// perform DCT on each channel
 	for (size_t u = 0; u < 8; ++u) {
@@ -324,8 +347,8 @@ void performDCTBlock(ppm_d_t *img, size_t startX, size_t startY) {
 	}
 }
 
-// preview the image pixels
 
+// Function to preview the image from the ppm_t struct
 void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
 	// print message if provided
 	printMsg(msg);
@@ -341,6 +364,7 @@ void previewImage(ppm_t *img, size_t startX = 0, size_t startY = 0, size_t lengt
 	}
 }
 
+// Function to preview the image from the ppm_d_t struct
 void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
 	// print message if provided
 	printMsg(msg);
@@ -357,12 +381,14 @@ void previewImageD(ppm_d_t *img, size_t startX = 0, size_t startY = 0, size_t le
 	}
 }
 
+// Function to print a message
 void printMsg(std::string msg) {
 	if (msg != "") {
 		std::cout << "## " << msg << " ##" << std::endl;
 	}
 }
 
+//  Function to preview assuming the input is uint8_t
 void previewImageLinear(std::vector <cl_uint>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
 	// print message if provided
 	printMsg(msg);
@@ -382,7 +408,7 @@ void previewImageLinear(std::vector <cl_uint>& v, const unsigned int width, cons
 		std::cout << std::endl;
 	}
 }
-
+// Function to preview assuming the input is int
 void previewImageLinearI(std::vector<int>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
 	// print message if provided
 	printMsg(msg);
@@ -403,7 +429,7 @@ void previewImageLinearI(std::vector<int>& v, const unsigned int width, const un
 	}
 }
 
-// TODO: use template to avoid code duplication
+// Function to preview assuming the input is double
 void previewImageLinearD(std::vector<float>& v, const unsigned int width, const unsigned int height, size_t startX = 0, size_t startY = 0, size_t lengthX = 8, size_t lengthY = 8, std::string msg) {
 	// print message if provided
 	printMsg(msg);
@@ -424,7 +450,7 @@ void previewImageLinearD(std::vector<float>& v, const unsigned int width, const 
 	}
 }
 
-// TODO: if the simpler (2-loop) GPU implementation works, modify this function to use only two loops instead of four
+// Function to perform quantization on the image
 void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
 	for (size_t y = 0; y < img->height; y += 8) {
 		for (size_t x = 0; x < img->width; x += 8) {
@@ -440,7 +466,7 @@ void performQuantization(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], c
 	}
 }
 
-// TODO: test it!
+// Function to perform quantization on the image - Alternate function
 void performQuantizationSimple(ppm_d_t *img, const unsigned int quant_mat_lum[8][8], const unsigned int quant_mat_chrom[8][8]) {
 	for (size_t y = 0; y < img->height; y += 1) {
 		for (size_t x = 0; x < img->width; x += 1) {
@@ -452,6 +478,7 @@ void performQuantizationSimple(ppm_d_t *img, const unsigned int quant_mat_lum[8]
 	}
 }
 
+// Function to concetanate every MCU of the three channels into a single 2D array
 void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 	unsigned int rowsPerChannel = img->height * img->width / 64;
 	unsigned int numOfMCUsX = img->width / 8;
@@ -470,6 +497,7 @@ void everyMCUisnow2DArray(ppm_d_t *img, int linear_arr[][64]) {
 	}
 }
 
+
 void everyMCUisnow1DArray(std::vector<int>& input_arr, int output_arr[], unsigned int width, unsigned int height) {
 	unsigned int rowsPerChannel = height * width / 64;
 	unsigned int numOfMCUsX = width / 8;
@@ -486,7 +514,8 @@ void everyMCUisnow1DArray(std::vector<int>& input_arr, int output_arr[], unsigne
 	}
 }
 
-// Function to perform diagonal zigzag traversal on an 2D linearized array and store the result in a 1D array
+// Function to perform diagonal zigzag traversal on an 2D linearized array and store the result in a 1D array 
+// method : Reconstructing the linearized array into a 2D array and then performing the diagonal zigzag traversal
 void diagonalZigZagBlock(int linear_arr[], int zigzag_arr[]) {
     int index = 0; // Index for zigzag_arr
 	int MCU[8][8];
@@ -506,7 +535,7 @@ void diagonalZigZagBlock(int linear_arr[], int zigzag_arr[]) {
 			
     }
 }
-
+// Function to perform diagonal zigzag traversal directly on the linearized array
 void diagonalZigZagBlockLinear(int linear_arr[], int zigzag_arr[]) {
 	unsigned int index = 0;
 	for (int diag = 0; diag < 16 - 1; ++diag) {
@@ -521,6 +550,7 @@ void diagonalZigZagBlockLinear(int linear_arr[], int zigzag_arr[]) {
 	}
 }
 
+// Function to perform zigzag traversal across the MCU blocks
 void performZigZag(int linear_arr[][64], int zigzag_arr[][64], int numRows) {
 	for (size_t i = 0; i < numRows; ++i) {
 		diagonalZigZagBlockLinear(linear_arr[i], zigzag_arr[i]);
@@ -538,8 +568,9 @@ void seperateChannels(int zigzag_arr[][64], int zigzag_arr_y[][64], int zigzag_a
 	}
 }
 
+// Function to perform RLE on the zigzag array on AC coefficients
 void RLEBlockAC(int zigzag_array[], std::vector<int>& rle_vector) {
-  int count = 0;
+  	int count = 0;
 	int lastNonZeroIndex = 0;
 
 	// Get the index of the last non-zero element
@@ -577,6 +608,7 @@ void RLEBlockAC(int zigzag_array[], std::vector<int>& rle_vector) {
     rle_vector.push_back(0);
 }
 
+// Function to perform RLE on all the MCU blocks
 void performRLE(int zigzag_array[][64], std::vector<std::vector<int>>& rle_vector, int rowsperchannel)
 {
 	for(size_t i=0; i <rowsperchannel; i++)
@@ -587,12 +619,14 @@ void performRLE(int zigzag_array[][64], std::vector<std::vector<int>>& rle_vecto
 	}
 }
 
+// Function to get the category from the given value
 const int16_t getValueCategory(const int16_t value) {
     if (value == 0x0000)
         return 0;
     return std::log2(std::abs(value)) + 1;
 }
 
+// Function to convert the value to a bit stream
 const std::string valueToBitString(const int16_t value) {
     if (value == 0x0000)
         //return "0"; 
@@ -618,6 +652,7 @@ const std::string valueToBitString(const int16_t value) {
     return bitStr;
 }
 
+// Function to implement the Huffman encoding
 std::string HuffmanEncoder(int zigzag_array[][64], 
 					std::vector<std::vector<int>>& rle_vector,
 					int numRowsPerChannel) {
@@ -662,6 +697,7 @@ std::string HuffmanEncoder(int zigzag_array[][64],
 	return m_scandata;			
 }
 
+// Function to perform the copy Image to vector
 void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
 	for (size_t idx = 0; idx < img->width * img->height; ++idx) {
 		v[idx] = img->data[idx].r;
@@ -670,6 +706,7 @@ void copyImageToVector(ppm_t *img, std::vector <cl_uint>& v) {
 	}
 }
 
+// Function to implement Reverse Padding for GPU
 void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int oldWidth, const unsigned int oldHeight, const unsigned int newWidth, const unsigned int newHeight) {
 	// copy the original image
 	for (size_t y = 0; y < oldHeight; ++y) {
@@ -701,7 +738,7 @@ void copyOntoLargerVectorWithPadding(std::vector <cl_uint>& vInput, std::vector 
 	}
 }
 
-// TODO: is this function still required?
+// Function to restrucure the vector in RGBRGBRGB... to RRR...GGG...BBB...
 void switchVectorChannelOrdering(std::vector <cl_uint>& vInput, std::vector <cl_uint>& vOutput, const unsigned int width, const unsigned int height) {
 	for (size_t y = 0; y < height * width; ++y) {
 		// place first channel in every third position starting with 0
@@ -712,7 +749,7 @@ void switchVectorChannelOrdering(std::vector <cl_uint>& vInput, std::vector <cl_
 		vOutput[y * 3 + 2] = vInput[y + width * height * 2];
 	}
 }
-
+// Write ppm image to file (GPU)
 void writeVectorToFile(const char * file_path, const unsigned int width, const unsigned int height, std::vector <cl_uint>& imgVector) {
 	// create file object 
 	FILE *fp = fopen(file_path, "wb");
