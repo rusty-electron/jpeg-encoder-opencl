@@ -27,6 +27,7 @@
 
 int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	
+	std::cout << "\n### CPU Implementation ###" << std::endl;
 	// write the image to a file
     if (writePPMImage("../data/fruit_copy.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
@@ -46,7 +47,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	// remove the blue channel from the image - testing
     removeRedChannel(&imgCPU2);
 	// write the image to a file - testing
-    if (writePPMImage("../data/fruit_no_blue.ppm", imgCPU2.width, imgCPU2.height, imgCPU2.data) == -1) {
+    if (writePPMImage("../data/fruitCPU_no_blue.ppm", imgCPU2.width, imgCPU2.height, imgCPU2.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
         return 1;
     }
@@ -61,7 +62,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	std::cout << "CSC Time CPU: " << CSCTimeCPU.toString() << std::endl;
 	
 	// write the image after CSC to a file
-    if (writePPMImage("../data/fruit_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+    if (writePPMImage("../data/fruitCPU_csc.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
         return 1;
     }
@@ -77,7 +78,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	std::cout << "CDS Time CPU: " << CDSTimeCPU.toString() << std::endl;
 
     // write the image to a file
-    if (writePPMImage("../data/fruit_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
+    if (writePPMImage("../data/fruitCPU_cds.ppm", imgCPU.width, imgCPU.height, imgCPU.data) == -1) {
         std::cout << "Error writing the image" << std::endl;
         return 1;
     }
@@ -110,7 +111,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	Core::TimeSpan copyTimeCPU = endTime - startTime;
 
 	// write the image to a file
-	if (writePPMImage("../data/fruit_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+	if (writePPMImage("../data/fruitCPU_copy_larger.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
 		std::cout << "Error writing the image" << std::endl;
 		return 1;
 	}
@@ -119,7 +120,7 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
 
 	// write the image to a file
-	if (writePPMImage("../data/fruit_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
+	if (writePPMImage("../data/fruitCPU_copy_larger_padded.ppm", imgCPU3.width, imgCPU3.height, imgCPU3.data) == -1) {
 		std::cout << "Error writing the image" << std::endl;
 		return 1;
 	}
@@ -145,9 +146,6 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 	startTime = Core::getCurrentTime();
 	substractfromAll(&imgCPU_d, 128.0);
 	endTime = Core::getCurrentTime();
-
-	std::cout << "First 8x8 block of the image after level shifting:" << std::endl;
-	previewImageD(&imgCPU_d, 0, 0, 8, 8);
 
 	Core::TimeSpan levelShiftingCPU = endTime - startTime;
 	std::cout << "Level Shifting Time CPU: " << levelShiftingCPU.toString() << std::endl;
@@ -334,6 +332,7 @@ int main(int argc, char** argv) {
 	// Copy input data to device
 	queue.enqueueWriteBuffer(d_input, true, 0, size, h_input.data(), NULL, NULL);
 
+	std::cout << "\n### GPU Implementation ###" << std::endl;
 	//////////////////////////////////// Color Space Conversion (GPU) ///////////////////////////////////////
 
 	cl::Event colorConversionEvent;
@@ -412,14 +411,14 @@ int main(int argc, char** argv) {
 	Core::TimeSpan chromaSubsamplingTimeGPU = OpenCL::getElapsedTime(chromaSubsamplingEvent);
 	std::cout << "Chroma subsampling time (GPU): " << chromaSubsamplingTimeGPU.toString() << std::endl;
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	//////////////////////////////////// Level Shifting and DCT (GPU) ///////////////////////////////////////
-
 	// testing 
 	std::vector<cl_uint> h_img_test(newWidth * newHeight * 3);
 	switchVectorChannelOrdering(h_largeoutput, h_img_test, newWidth, newHeight);
-	writeVectorToFile("../data/fruit_gpu_subsampling_output.ppm", newWidth, newHeight, h_img_test);
+	writeVectorToFile("../data/fruitGPU_subsampling_output.ppm", newWidth, newHeight, h_img_test);
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//////////////////////////////////// Level Shifting and DCT (GPU) ///////////////////////////////////////
 
 	// Level shift the chroma channels by 128
 	std::vector<float> hDCTinput (h_largeoutput.begin(), h_largeoutput.end());
@@ -536,7 +535,7 @@ int main(int argc, char** argv) {
 	quantizationKernel.setArg<cl_uint>(5, (cl_uint)imgCPU.height);
 
 	// Launch quantization kernel on the compute device
-	queue.enqueueNDRangeKernel(quantizationKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, NULL);
+	queue.enqueueNDRangeKernel(quantizationKernel, cl::NullRange, cl::NDRange(countX, countY), cl::NDRange(wgSizeX, wgSizeY), NULL, &quantizationEvent);
 	// Copy output data back to host
 	queue.enqueueReadBuffer(d_foutput, true, 0, size * sizeof (int), h_newoutput.data(), NULL, NULL);
 
