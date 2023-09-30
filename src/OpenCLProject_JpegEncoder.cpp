@@ -115,7 +115,6 @@ int JpegEncoderHost(ppm_t imgCPU, CPUTelemetry *cpu_telemetry = NULL) {
 		return 1;
 	}
 
-	// TODO: add padding to the image only if the image dims are not divisible by 8
 	// add reverse padding to the image
 	addReversedPadding(&imgCPU3, imgCPU.width, imgCPU.height);
 
@@ -552,7 +551,6 @@ int main(int argc, char** argv) {
 
 	//////////////////////////////////// ZigZag Scanning (GPU) ///////////////////////////////////////////
 
-	// TODO: use single index for performing zigzag on the GPU
 	int zigzagInput[newWidth * newHeight * 3];
 	int zigzagOutput[newWidth * newHeight * 3];
 
