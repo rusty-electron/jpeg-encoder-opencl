@@ -3,7 +3,7 @@
 #include <string>
 
 // Standard Huffman Tables
-// See Annex-K of the JPEG standard
+// See Annex-K of the JPEG standard - https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
 // Table: K-3: Luminance DC coefficient differences
 const std::vector<std::string> DC_LUMA_HUFF_CODES = 
